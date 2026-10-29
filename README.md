@@ -11,12 +11,14 @@ Este kit traz um bot que já compila e anda pela arena, em quatro linguagens. A 
 | `java/` | `MeuBot.java` | `gson.jar` (biblioteca Gson) |
 | `python/` | `bot.py` | nada: só a biblioteca padrão do Python 3 |
 
+Na raiz do kit ficam o `verificar.py` e a pasta `verificador/`: eles conferem o seu bot antes do envio (veja "Verificar antes de enviar").
+
 ## Início rápido
 
 1. Escolha a linguagem e abra o arquivo da pasta dela.
 2. Procure `SEU CÓDIGO COMEÇA AQUI`, logo depois da seção de ajudantes. O `pensar` do kit lê todos os campos do estado, com um comentário em cada um, e devolve uma ação simples: andar para a frente girando devagar, sem atirar.
 3. Escreva a sua estratégia no lugar da ação simples.
-4. Compile na sua máquina (seção abaixo).
+4. Rode o verificador: `python3 verificar.py <pasta>/<arquivo>` (seção abaixo).
 5. Envie o arquivo pela guia *Runs* do BOCA, escolhendo a linguagem certa.
 
 Assinaturas de `pensar` (não podem mudar):
@@ -28,9 +30,36 @@ Assinaturas de `pensar` (não podem mudar):
 | Java | `public static JsonObject pensar(JsonObject estado)` |
 | Python 3 | `def pensar(estado):` (recebe e devolve um `dict`) |
 
+## Verificar antes de enviar
+
+Na pasta do kit:
+
+```bash
+python3 verificar.py python/bot.py      # ou c/bot.c, cpp/bot.cpp, java/MeuBot.java
+python3 verificar.py c/bot.c --ticks 600
+```
+
+O verificador faz, na sua máquina, o mesmo que o BOCA e a arena fazem com o seu arquivo:
+
+| Etapa | O que confere | Com erro, no BOCA... |
+| :--- | :--- | :--- |
+| 1. Validação | As mesmas regras do validador: `main()`, assinatura do `pensar`, `package`, bibliotecas permitidas | o envio recebe Compilation Error |
+| 2. Montagem | Compila o seu código junto com o código da arena, como na partida | o envio recebe Compilation Error |
+| 3. Teste rodando | Executa o seu `pensar()` em 300 estados de jogo: tempo de cada resposta, campos da ação, exceções e saída | o bot perde ticks ou é eliminado na partida |
+
+O que o teste rodando aponta:
+- **Tempo:** a arena espera no máximo **50 ms** por tick. Um tick mais lento é perdido, e 20 seguidos eliminam o bot. O tick 0 tem 5 s, para o programa iniciar. Acima de 35 ms aparece um aviso: o servidor roda até 20 bots e pode ser mais lento que a sua máquina.
+- **Exceção no `pensar()`:** a arena usa a ação parada (`{}`) naquele tick e o tanque fica parado. As primeiras linhas do erro aparecem no fim do relatório.
+- **Campos da ação:** `throttle`, `turn` e `turret_angle` são números; `shoot` e `shield` são `true`/`false`. Campo com tipo errado, `NaN` ou nulo é ignorado e vale o padrão (parado, sem tiro). Número em `shoot`/`shield` é aceito (diferente de 0 = sim), com aviso. `throttle`/`turn` fora de [-1, 1] são cortados para o limite.
+- **Programa que termina, ou que não responde em 3 s:** na arena o bot seria desconectado e eliminado.
+
+O teste rodando **não é uma partida**: os adversários andam em círculos e não atiram. Ele serve para achar erros e lentidão. Para ver a estratégia jogando, use o teste contra os NPCs na guia *Desafio* do BOCA.
+
+O verificador precisa do Python 3.10+. As etapas 2 e 3 precisam do compilador da linguagem (`gcc`, `g++` ou `javac`) e do `bash`. No Windows, rode no WSL. Em Python, o teste rodando também funciona no Windows sem o `bash`.
+
 ## Compilar na sua máquina
 
-Rode **dentro da pasta da linguagem**. Os comandos só conferem o código. Como o programa principal é o da arena, eles não geram um executável.
+Se quiser só compilar, sem o verificador, rode **dentro da pasta da linguagem**. Os comandos só conferem o código. Como o programa principal é o da arena, eles não geram um executável.
 
 ```bash
 # C

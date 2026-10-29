@@ -34,6 +34,11 @@ OBRIGATORIOS = [
     "cpp/bot.cpp", "cpp/nlohmann/json.hpp",
     "java/MeuBot.java", "java/gson.jar",
     "python/bot.py",
+    # Verificador: as mesmas checagens e a mesma montagem da partida (cópias do battle-orchestrator)
+    "verificar.py",
+    "verificador/build_bot.sh", "verificador/checar_fonte.py", "verificador/checar_python.py",
+    "verificador/wrapper.py", "verificador/wrapper.java", "verificador/cpp_header.hpp",
+    "verificador/cpp_footer.cpp", "verificador/c_wrapper.cpp",
 ]
 
 
