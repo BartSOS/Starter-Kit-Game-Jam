@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "arena.h": "c"
+    },
+    "java.project.sourcePaths": ["java"],
+    "java.project.referencedLibraries": ["java/gson.jar"],
+    "java.project.outputPath": "java/out"
+}

@@ -4,7 +4,8 @@ Gera o starter_kit.zip das equipes a partir desta pasta (fonte única do zip).
 
 Zip determinístico: entradas ordenadas, data fixa, permissões 0644 e create_system Unix,
 sob a pasta raiz starter_kit/. Ficam de fora os arquivos internos da organização
-(AJUDANTES.md, ERROS_VALIDADOR.md, MANUTENCAO.md e este script), os ocultos e os caches.
+(AJUDANTES.md, ERROS_VALIDADOR.md, MANUTENCAO.md e este script), os ocultos (menos a
+configuração do VS Code em .vscode/) e os caches.
 
 Quem usa:
   - o build da imagem web do Boca-Game-Jam-Pet (Dockerfile, estágio dist);
@@ -23,8 +24,11 @@ import zipfile
 PASTA_RAIZ_ZIP = "starter_kit"
 DATA_FIXA = (2026, 1, 1, 0, 0, 0)  # datas fixas: o mesmo kit gera o mesmo zip
 EXCLUIDOS = {"AJUDANTES.md", "ERROS_VALIDADOR.md", "MANUTENCAO.md", "empacotar_kit.py"}
+# Ocultos que vão no zip: a configuração do VS Code (acha o arena.h, o json.hpp e o gson.jar)
+OCULTOS_PERMITIDOS = {".vscode"}
 OBRIGATORIOS = [
     "README.md",
+    ".vscode/c_cpp_properties.json", ".vscode/settings.json",
     "c/bot.c", "c/arena.h",
     "cpp/bot.cpp", "cpp/nlohmann/json.hpp",
     "java/MeuBot.java", "java/gson.jar",
@@ -33,8 +37,8 @@ OBRIGATORIOS = [
 
 
 def ignorado(nome):
-    """Nomes que nunca entram no zip: ocultos, caches Python e os arquivos internos."""
-    return (nome.startswith(".") or nome == "__pycache__" or nome in EXCLUIDOS
+    """Nomes que nunca entram no zip: ocultos (menos o .vscode), caches Python e os arquivos internos."""
+    return ((nome.startswith(".") and nome not in OCULTOS_PERMITIDOS) or nome == "__pycache__" or nome in EXCLUIDOS
             or nome.endswith((".pyc", ".pyo")))
 
 

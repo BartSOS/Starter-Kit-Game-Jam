@@ -48,6 +48,12 @@ python3 -m py_compile bot.py
 
 O template gera avisos de "variável não usada" com `-Wall`, porque lê todos os campos só para mostrar o que existe. Eles somem quando você passa a usar os valores.
 
+## Abrir no VS Code
+
+Abra **a pasta `starter_kit` inteira** (Arquivo → Abrir Pasta), não um arquivo solto. A pasta `.vscode/` do kit já diz ao editor onde ficam o `arena.h`, o `nlohmann/json.hpp` e o `gson.jar`. Sem ela, o editor sublinha em vermelho tipos que existem, como `Estado`, `json` e `JsonObject`.
+
+Extensões: *C/C++* (Microsoft) para C e C++, *Extension Pack for Java* para Java e *Python* para Python. No Windows sem compilador instalado, a extensão de C/C++ pode avisar que não acha o `math.h`. Instale o `gcc`/`g++` (MinGW ou WSL) ou ignore o aviso: quem compila de verdade é o BOCA.
+
 ## Os ajudantes
 
 No topo de cada arquivo há uma seção marcada:
