@@ -50,9 +50,20 @@ O template gera avisos de "variável não usada" com `-Wall`, porque lê todos o
 
 ## Abrir no VS Code
 
-Abra **a pasta `starter_kit` inteira** (Arquivo → Abrir Pasta), não um arquivo solto. A pasta `.vscode/` do kit já diz ao editor onde ficam o `arena.h`, o `nlohmann/json.hpp` e o `gson.jar`. Sem ela, o editor sublinha em vermelho tipos que existem, como `Estado`, `json` e `JsonObject`.
+Use **Arquivo → Abrir Pasta**, não um arquivo solto. Abra a pasta que tem este `README.md` ou a pasta da sua linguagem (`c/`, `cpp/` ou `java/`): as duas trazem uma `.vscode/` que diz ao editor onde ficam o `arena.h`, o `nlohmann/json.hpp` e o `gson.jar`. No Windows, o "Extrair Tudo" cria `starter_kit\starter_kit\`: abra a de **dentro**, senão o editor não lê a configuração e sublinha em vermelho tipos que existem, como `Estado`, `json` e `JsonObject`.
 
-Extensões: *C/C++* (Microsoft) para C e C++, *Extension Pack for Java* para Java e *Python* para Python. No Windows sem compilador instalado, a extensão de C/C++ pode avisar que não acha o `math.h`. Instale o `gcc`/`g++` (MinGW ou WSL) ou ignore o aviso: quem compila de verdade é o BOCA.
+Extensões: *C/C++* (Microsoft) para C e C++, *Extension Pack for Java* para Java e *Python* para Python.
+
+**C e C++ precisam de um compilador instalado**, até para o editor entender o código. Sem ele, a extensão não acha a biblioteca padrão e dá erros como estes, mesmo com o código certo:
+- `cannot open source file "math.h"`;
+- `no instance of constructor ... basic_json`;
+- `std::vector ... has no member "push_back"`.
+
+No Linux (como no laboratório), instale o `gcc`/`g++` pelo gerenciador de pacotes. No Windows, use uma destas opções:
+- **WSL:** com a extensão *WSL*, rode "WSL: Abrir Pasta no WSL" e instale o `gcc`/`g++` lá (`sudo apt install build-essential`);
+- **MSYS2/MinGW-w64:** instale o `gcc`/`g++` e escolha esse compilador em "C/C++: Select IntelliSense Configuration".
+
+**Java precisa do JDK 17.** Se os erros em `import com.google.gson...` continuarem depois de abrir a pasta certa, rode o comando "Java: Clean Java Language Server Workspace" e recarregue a janela.
 
 ## Os ajudantes
 

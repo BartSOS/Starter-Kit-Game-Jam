@@ -29,6 +29,7 @@ OCULTOS_PERMITIDOS = {".vscode"}
 OBRIGATORIOS = [
     "README.md",
     ".vscode/c_cpp_properties.json", ".vscode/settings.json",
+    "c/.vscode/c_cpp_properties.json", "cpp/.vscode/c_cpp_properties.json", "java/.vscode/settings.json",
     "c/bot.c", "c/arena.h",
     "cpp/bot.cpp", "cpp/nlohmann/json.hpp",
     "java/MeuBot.java", "java/gson.jar",
