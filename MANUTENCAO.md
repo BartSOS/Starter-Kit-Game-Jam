@@ -5,18 +5,23 @@ Material interno: este arquivo, o `AJUDANTES.md` e o `ERROS_VALIDADOR.md` **não
 Repositório privado `BartSOS/Starter-Kit-Game-Jam`. No workspace, fica em `Docker/Starter-Kit-Game-Jam/`, ao lado do `battle-orchestrator/`. Até 27/10/2026 o kit ficava em `battle-orchestrator/starter-kit/`, e o histórico veio junto.
 
 ## Arquivos copiados do orchestrator
-Três arquivos são cópias do `battle-orchestrator`, que é a fonte, e precisam ficar iguais ao que a partida usa:
+Estes arquivos são cópias do `battle-orchestrator`, que é a fonte, e precisam ficar iguais ao que a partida usa:
 
 | Kit | Origem no orchestrator |
 | :--- | :--- |
 | `c/arena.h` | `wrappers/arena.h` |
 | `cpp/nlohmann/json.hpp` | `engine/nlohmann/json.hpp` |
 | `java/gson.jar` | `libs/gson-2.10.1.jar` |
+| `verificador/build_bot.sh`, `checar_fonte.py`, `checar_python.py` | `wrappers/` (mesmos nomes) |
+| `verificador/wrapper.py`, `wrapper.java`, `cpp_header.hpp`, `cpp_footer.cpp`, `c_wrapper.cpp` | `wrappers/` (mesmos nomes) |
+
+A pasta `verificador/` é o que o `verificar.py` usa para montar e rodar o bot igual à partida. Nunca edite essas cópias aqui: mude no orch e sincronize.
 
 No WSL, a partir da raiz do workspace:
 ```bash
 bash battle-orchestrator/empacotar.sh --conferir-kit      # código 1 se alguma cópia divergir
 bash battle-orchestrator/empacotar.sh --sincronizar-kit   # copia de novo para este repositório
+python3 .claude/skills/boca-gerenciar-engine/scripts/testar_kits.py --copias   # confere estas e as outras cópias do workspace
 ```
 O caminho do kit vem de `GAMEJAM_KIT_DIR` (padrão `../Starter-Kit-Game-Jam`, relativo ao orchestrator).
 
