@@ -31,6 +31,15 @@ O caminho do kit vem de `GAMEJAM_KIT_DIR` (padrão `../Starter-Kit-Game-Jam`, re
 
 Mudou um ajudante? Atualize os 4 arquivos e o `AJUDANTES.md`. O `testar_kits.py` confere se os valores batem entre as linguagens, se os NPCs e o espelho `bots_base` usam os mesmos ajudantes, e se cada template recebe YES e joga.
 
+## Modelos de treino (`treino/`)
+Um modelo por fase e linguagem, para a aba Treino. Cada um é o esqueleto do modelo principal: mesmo cabeçalho de regras (resumido), **a mesma seção AJUDANTES** e um `pensar` curto com um único `TODO` no ponto que a fase ensina, sem a solução. Sem a chave `objetivo` (fora do treino), o modelo fica parado.
+
+O que os mantém alinhados:
+- **Fases:** as pastas usam os ids de `battle-orchestrator/fases/*.json` (lista `FASES_TREINO` do `empacotar_kit.py`, que também gera os obrigatórios do zip). Fase nova, renomeada ou com objetivo diferente: crie/renomeie a pasta, ajuste o `pensar` dos 4 modelos e a lista, e confira com `python3 empacotar_kit.py --fases ../battle-orchestrator/fases`.
+- **Ajudantes:** o `empacotar_kit.py` recusa o zip se a seção AJUDANTES de um modelo de treino divergir da do modelo principal da linguagem. Depois de mudar um ajudante, rode `python3 empacotar_kit.py --alinhar-treino`.
+- **Estado:** os modelos leem `objetivo.pontos` (C: `e->pontos`/`e->n_pontos`, do `arena.h`) e `enemies`. Mudou o contrato do estado no orch (C-E2)? Sincronize as cópias e revise os modelos.
+- **Teste:** `python3 verificar.py treino/<fase>/<arquivo> --treino` (validação, montagem e estados com pontos). Rodar na fase de verdade: `TOPCOM_FASE=<orch>/fases/<fase>.json TOPCOM_FASE_SEED=<n> bash script.sh <pasta>` numa cópia do orch (README do orch, seção 1.2). Os modelos não passam a fase (falta o `TODO`), mas precisam rodar sem erro.
+
 ## O zip das equipes
 O `empacotar_kit.py`, neste repositório, é a **fonte única** do `starter_kit.zip`. Ele usa só a biblioteca padrão. O zip é determinístico:
 - entradas em ordem;

@@ -6,12 +6,21 @@ Este kit traz um bot que já compila e anda pela arena, em quatro linguagens. A 
 
 | Pasta | Você edita e envia | Vem junto (não envie) |
 | :--- | :--- | :--- |
-| `c/` | `bot.c` | `arena.h` (tipos `Estado`, `Acao`, `Tanque`, `Inimigo`, `Hazard`, `Item`) |
+| `c/` | `bot.c` | `arena.h` (tipos `Estado`, `Acao`, `Tanque`, `Inimigo`, `Hazard`, `Item`, `Ponto`) |
 | `cpp/` | `bot.cpp` | `nlohmann/json.hpp` (biblioteca JSON) |
 | `java/` | `MeuBot.java` | `gson.jar` (biblioteca Gson) |
 | `python/` | `bot.py` | nada: só a biblioteca padrão do Python 3 |
 
-Na raiz do kit ficam o `verificar.py` e a pasta `verificador/`: eles conferem o seu bot antes do envio (veja "Verificar antes de enviar").
+Na raiz do kit ficam o `verificar.py` e a pasta `verificador/`: eles conferem o seu bot antes do envio (veja "Verificar antes de enviar"). A pasta `treino/` traz os modelos das fases da guia *Treino* (seção "Treino").
+
+## Treino
+
+Seis fases curtas na guia *Treino* do BOCA, em 3 blocos (movimento, mira, sobrevivência): cada uma ensina uma coisa e dá até 3 balões. Não vale ponto.
+
+- `treino/<fase>/` tem o modelo da fase nas 4 linguagens, com um único `TODO`.
+- Complete o `TODO` e envie o arquivo na própria fase. O resultado e o replay aparecem lá.
+- Os pontos da fase chegam em `estado["objetivo"]["pontos"]` (C: `e->pontos[i]`, `i < e->n_pontos`); os alvos, em `enemies`.
+- Teste local: `python3 verificar.py treino/01_andar/bot.py --treino`.
 
 ## Início rápido
 
@@ -37,6 +46,7 @@ Na pasta do kit:
 ```bash
 python3 verificar.py python/bot.py      # ou c/bot.c, cpp/bot.cpp, java/MeuBot.java
 python3 verificar.py c/bot.c --ticks 600
+python3 verificar.py treino/02_parar/bot.c --treino   # estados com os pontos do objetivo
 ```
 
 O verificador faz, na sua máquina, o mesmo que o BOCA e a arena fazem com o seu arquivo:
