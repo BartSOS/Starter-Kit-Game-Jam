@@ -13,7 +13,9 @@ Quem usa:
 
 Uso:
     python3 empacotar_kit.py --saida starter_kit.zip [--pasta DIR]
-Só a biblioteca padrão. Código 1 se faltar algum arquivo obrigatório.
+    python3 empacotar_kit.py --alinhar-treino [--fases ../battle-orchestrator/fases]
+Só a biblioteca padrão. Código 1 se faltar algum arquivo obrigatório ou se a seção
+AJUDANTES de um modelo de treino/ divergir da do modelo principal da linguagem.
 """
 
 import argparse
@@ -40,6 +42,58 @@ OBRIGATORIOS = [
     "verificador/wrapper.py", "verificador/wrapper.java", "verificador/cpp_header.hpp",
     "verificador/cpp_footer.cpp", "verificador/c_wrapper.cpp",
 ]
+
+# Treino: um modelo por fase e linguagem. Os ids são os de battle-orchestrator/fases/*.json
+# (--fases confere). A seção AJUDANTES de cada modelo é cópia da do modelo principal da
+# linguagem: o zip não sai se divergir (--alinhar-treino recopia).
+FASES_TREINO = ["01_andar", "02_parar", "03_percurso", "04_mira_parado", "05_mira_andando", "06_artilharia"]
+MODELOS = {"bot.py": "python/bot.py", "bot.c": "c/bot.c", "bot.cpp": "cpp/bot.cpp", "MeuBot.java": "java/MeuBot.java"}
+OBRIGATORIOS += ["treino/LEIA.md"] + [f"treino/{f}/{n}" for f in FASES_TREINO for n in MODELOS]
+
+
+def secao_ajudantes(texto):
+    """(início, fim) da seção AJUDANTES em linhas: da moldura antes de 'AJUDANTES (opcional'
+    até a moldura depois de 'FIM DOS AJUDANTES', inclusive. None se faltar um marcador."""
+    linhas = texto.split("\n")
+    ini = next((i for i, l in enumerate(linhas) if "AJUDANTES (opcional" in l), None)
+    fim = next((i for i, l in enumerate(linhas) if "FIM DOS AJUDANTES" in l), None)
+    if ini is None or fim is None or ini < 1 or fim + 1 >= len(linhas) or fim < ini:
+        return None
+    return ini - 1, fim + 1
+
+
+def _ler(caminho):
+    with open(caminho, encoding="utf-8", newline="") as f:
+        return f.read()
+
+
+def _ajudantes(texto):
+    s = secao_ajudantes(texto)
+    return None if s is None else "\n".join(texto.split("\n")[s[0]:s[1] + 1])
+
+
+def treino_desalinhado(pasta, alinhar=False):
+    """Modelos de treino cuja seção AJUDANTES difere da do modelo principal (com alinhar=True, recopia)."""
+    ruins = []
+    for fase in FASES_TREINO:
+        for nome, principal in MODELOS.items():
+            alvo = os.path.join(pasta, "treino", fase, nome)
+            if not os.path.isfile(alvo) or not os.path.isfile(os.path.join(pasta, principal)):
+                continue
+            certo, texto = _ajudantes(_ler(os.path.join(pasta, principal))), _ler(alvo)
+            s = secao_ajudantes(texto)
+            if certo is None or s is None:
+                ruins.append(f"treino/{fase}/{nome}")  # sem marcadores: não dá para alinhar
+            elif _ajudantes(texto) == certo:
+                continue
+            elif alinhar:
+                linhas = texto.split("\n")
+                novo = "\n".join(linhas[:s[0]] + certo.split("\n") + linhas[s[1] + 1:])
+                with open(alvo, "w", encoding="utf-8", newline="") as f:
+                    f.write(novo)
+            else:
+                ruins.append(f"treino/{fase}/{nome}")
+    return ruins
 
 
 def ignorado(nome):
@@ -96,16 +150,37 @@ def empacotar(pasta, saida):
     falta = faltando({rel for rel, _ in arquivos})
     if falta:
         return 1, "ERRO kit incompleto, zip não gerado. Faltam: " + ", ".join(falta)
+    ruins = treino_desalinhado(pasta)
+    if ruins:
+        return 1, ("ERRO ajudantes do treino diferentes dos modelos principais (rode --alinhar-treino): "
+                   + ", ".join(ruins))
     gravar_zip(saida, arquivos)
     return 0, f"OK zip: {len(arquivos)} arquivos -> {saida}"
 
 
 def main():
     ap = argparse.ArgumentParser(description="Gera o starter_kit.zip das equipes.")
-    ap.add_argument("--saida", required=True, help="caminho do zip a gerar")
+    ap.add_argument("--saida", help="caminho do zip a gerar")
     ap.add_argument("--pasta", default=os.path.dirname(os.path.abspath(__file__)),
                     help="pasta do kit (padrão: a deste script)")
+    ap.add_argument("--alinhar-treino", action="store_true",
+                    help="recopia a seção AJUDANTES dos modelos principais para treino/*/")
+    ap.add_argument("--fases", metavar="DIR", help="confere FASES_TREINO com DIR/*.json (battle-orchestrator/fases)")
     args = ap.parse_args()
+    if args.alinhar_treino or args.fases:
+        codigo = 0
+        if args.alinhar_treino:
+            ruins = treino_desalinhado(os.path.abspath(args.pasta), alinhar=True)
+            print("ERRO sem marcadores AJUDANTES: " + ", ".join(ruins) if ruins else "OK treino alinhado")
+            codigo = 1 if ruins else 0
+        if args.fases:
+            ids = sorted(n[:-5] for n in os.listdir(args.fases) if n.endswith(".json"))
+            igual = ids == sorted(FASES_TREINO)
+            print("OK fases do treino = fases do orch" if igual else f"ERRO fases do orch {ids} != FASES_TREINO")
+            codigo = codigo or (0 if igual else 1)
+        return codigo
+    if not args.saida:
+        ap.error("--saida é obrigatório")
     codigo, msg = empacotar(args.pasta, args.saida)
     print(msg)
     return codigo

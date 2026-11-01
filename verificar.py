@@ -14,6 +14,7 @@ Confere o seu bot ANTES de enviar, do mesmo jeito que o BOCA e a arena fazem:
 Uso (na pasta do kit):
     python3 verificar.py python/bot.py
     python3 verificar.py c/bot.c --ticks 600
+    python3 verificar.py treino/01_andar/bot.py --treino   (estados com os pontos do objetivo)
 
 Precisa do Python 3.10+. As etapas 2 e 3 precisam do compilador da sua linguagem
 (gcc, g++ ou javac) e do bash: no Windows, rode no WSL. Em Python, a etapa 3 também
@@ -182,8 +183,11 @@ class Mundo:
     """Gera estados no formato da arena. O seu tanque se move de acordo com a ação que você
     devolve; os adversários andam em círculos; perigos e itens aparecem e somem."""
 
-    def __init__(self, seed):
+    def __init__(self, seed, treino=False):
         self.rng = random.Random(seed)
+        # --treino: pontos do objetivo, como nas fases da aba Treino
+        self.pontos = [{"id": f"P{i + 1}", "x": round(self.rng.uniform(100, 900), 3),
+                        "y": round(self.rng.uniform(100, 900), 3), "raio": 30.0} for i in range(4)] if treino else None
         self.eu = {"id": 1, "x": 500.0, "y": 140.0, "vx": 0.0, "vy": 0.0, "angle": 90.0, "turret_angle": 90.0,
                    "hp": 100.0, "energy": 100.0, "cooldown": 0.0, "shield": False}
         self.inimigos = [self._inimigo(i + 2) for i in range(5)]
@@ -226,9 +230,12 @@ class Mundo:
         itens = [{"id": 5000 + i, "type": "HEAL" if i % 2 else "ENERGY", "x": 200.0 + 200 * i, "y": 820.0}
                  for i in range(4 if tick % 100 < 50 else 1)]
         self.eu["shield"] = bool(self.eu["shield"])
-        return {"enemies": inimigos, "hazards": perigos, "items": itens,
-                "self": {k: (round(v, 3) if isinstance(v, float) else v) for k, v in self.eu.items()},
-                "tick": tick}
+        estado = {"enemies": inimigos, "hazards": perigos, "items": itens,
+                  "self": {k: (round(v, 3) if isinstance(v, float) else v) for k, v in self.eu.items()},
+                  "tick": tick}
+        if self.pontos is not None:
+            estado["objetivo"] = {"pontos": self.pontos}
+        return estado
 
     def aplicar(self, acao):
         """Aplica a ação ao seu tanque (cinemática da arena, simplificada)."""
@@ -302,7 +309,7 @@ def conferir_acao(texto, problemas):
     return acao
 
 
-def testar(lang, exe, ticks, seed, rel):
+def testar(lang, exe, ticks, seed, rel, treino=False):
     rel.etapa(f"3. Teste rodando ({ticks} ticks de jogo, um estado por tick)")
     cmd = comando_execucao(lang, exe)
     try:
@@ -315,7 +322,7 @@ def testar(lang, exe, ticks, seed, rel):
     threading.Thread(target=_ler_saida, args=(proc.stdout, fila), daemon=True).start()
     threading.Thread(target=_ler_erro, args=(proc.stderr, stderr), daemon=True).start()
 
-    mundo = Mundo(seed)
+    mundo = Mundo(seed, treino)
     problemas = {"nao_json": 0, "nao_objeto": 0, "vazia": 0, "desconhecido": set(), "nulo": set(),
                  "tipo": set(), "fora": set(), "bool_numero": set()}
     tempos, lentos, tick0_ms, extras, morreu = [], [], None, 0, None
@@ -432,6 +439,7 @@ def main():
     ap.add_argument("arquivo", help="o arquivo do bot: .c, .cpp, .java ou .py")
     ap.add_argument("--ticks", type=int, default=300, help="ticks do teste rodando (padrão 300)")
     ap.add_argument("--seed", type=int, default=2026, help="semente dos estados gerados (padrão 2026)")
+    ap.add_argument("--treino", action="store_true", help="estados com objetivo (pontos), como na aba Treino")
     args = ap.parse_args()
 
     if sys.version_info < (3, 10):
@@ -453,7 +461,7 @@ def main():
         if validar(lang, arquivo, rel):
             exe = montar(lang, arquivo, tmp, rel)
             if exe:
-                testar(lang, exe, max(30, args.ticks), args.seed, rel)
+                testar(lang, exe, max(30, args.ticks), args.seed, rel, args.treino)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -464,7 +472,7 @@ def main():
     if rel.avisos:
         print(cor(f"RESULTADO: sem erros, {rel.avisos} aviso(s).", "33"))
         return 0
-    print(cor("RESULTADO: tudo certo. Envie pela guia Runs do BOCA.", "32"))
+    print(cor("RESULTADO: tudo certo. Envie pela aba " + ("Treino" if args.treino else "Runs") + " do BOCA.", "32"))
     return 0
 
 
