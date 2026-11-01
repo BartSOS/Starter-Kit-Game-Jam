@@ -185,7 +185,7 @@ class Mundo:
 
     def __init__(self, seed, treino=False):
         self.rng = random.Random(seed)
-        # --treino: pontos do objetivo, como nas fases da aba Treino
+        # --treino: pontos do objetivo, como nas fases da guia Treino
         self.pontos = [{"id": f"P{i + 1}", "x": round(self.rng.uniform(100, 900), 3),
                         "y": round(self.rng.uniform(100, 900), 3), "raio": 30.0} for i in range(4)] if treino else None
         self.eu = {"id": 1, "x": 500.0, "y": 140.0, "vx": 0.0, "vy": 0.0, "angle": 90.0, "turret_angle": 90.0,
@@ -439,7 +439,7 @@ def main():
     ap.add_argument("arquivo", help="o arquivo do bot: .c, .cpp, .java ou .py")
     ap.add_argument("--ticks", type=int, default=300, help="ticks do teste rodando (padrão 300)")
     ap.add_argument("--seed", type=int, default=2026, help="semente dos estados gerados (padrão 2026)")
-    ap.add_argument("--treino", action="store_true", help="estados com objetivo (pontos), como na aba Treino")
+    ap.add_argument("--treino", action="store_true", help="estados com objetivo (pontos), como na guia Treino")
     args = ap.parse_args()
 
     if sys.version_info < (3, 10):
@@ -472,7 +472,7 @@ def main():
     if rel.avisos:
         print(cor(f"RESULTADO: sem erros, {rel.avisos} aviso(s).", "33"))
         return 0
-    print(cor("RESULTADO: tudo certo. Envie pela aba " + ("Treino" if args.treino else "Runs") + " do BOCA.", "32"))
+    print(cor("RESULTADO: tudo certo. Envie pela guia " + ("Treino" if args.treino else "Runs") + " do BOCA.", "32"))
     return 0
 
 

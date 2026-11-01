@@ -11,11 +11,11 @@ Este kit traz um bot que já compila e anda pela arena, em quatro linguagens. A 
 | `java/` | `MeuBot.java` | `gson.jar` (biblioteca Gson) |
 | `python/` | `bot.py` | nada: só a biblioteca padrão do Python 3 |
 
-Na raiz do kit ficam o `verificar.py` e a pasta `verificador/`: eles conferem o seu bot antes do envio (veja "Verificar antes de enviar"). A pasta `treino/` traz os modelos das fases da aba *Treino* (seção "Treino").
+Na raiz do kit ficam o `verificar.py` e a pasta `verificador/`: eles conferem o seu bot antes do envio (veja "Verificar antes de enviar"). A pasta `treino/` traz os modelos das fases da guia *Treino* (seção "Treino").
 
 ## Treino
 
-Seis fases curtas na aba *Treino* do BOCA, em 3 blocos (movimento, mira, sobrevivência): cada uma ensina uma coisa e dá até 3 balões. Não vale ponto.
+Seis fases curtas na guia *Treino* do BOCA, em 3 blocos (movimento, mira, sobrevivência): cada uma ensina uma coisa e dá até 3 balões. Não vale ponto.
 
 - `treino/<fase>/` tem o modelo da fase nas 4 linguagens, com um único `TODO`.
 - Complete o `TODO` e envie o arquivo na própria fase. O resultado e o replay aparecem lá.

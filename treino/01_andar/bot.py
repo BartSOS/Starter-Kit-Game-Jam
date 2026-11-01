@@ -1,7 +1,7 @@
 # =============================================================================
 # GAME JAM PET 2026 - TREINO 01: Andar até um ponto (Python 3)
 # =============================================================================
-# Envie este arquivo na aba Treino e complete o TODO: o resto já funciona.
+# Envie este arquivo na guia Treino e complete o TODO: o resto já funciona.
 # Mesmas regras do python/bot.py.
 # =============================================================================
 
