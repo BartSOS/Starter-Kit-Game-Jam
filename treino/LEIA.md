@@ -10,3 +10,5 @@ Os pontos da fase chegam em `estado["objetivo"]["pontos"]` (em C: `e->pontos`, `
 Fora do treino essa chave não existe e o modelo fica parado. Treino não vale ponto: 3 balões por fase.
 
 Teste local: `python3 verificar.py treino/01_andar/bot.py --treino`
+
+Java no VS Code: copie o `MeuBot.java` da fase para `java/` (no lugar do modelo principal) e edite lá, onde o `gson.jar` já está configurado.
