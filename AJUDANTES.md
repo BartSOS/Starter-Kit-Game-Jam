@@ -77,10 +77,6 @@ Em Python, `estado.inimigos` etc. são listas (`len()`); em C e Java, vetores co
 O apoio converte `direcao` no `turn` da engine (o giro mais curto, limitado a 1) e `mover` no `throttle`.
 O modelo preenche sempre os 5 campos, mantendo o chassi e a torre (`acao.direcao = meu.angulo_chassi`).
 
-**API antiga:** em Python, C++ e Java, um `pensar` antigo (recebe e devolve o JSON cru em inglês)
-continua compilando e rodando, e as chaves antigas na ação (`throttle`, `turn`, `turret_angle`, `shoot`,
-`shield`) são aceitas com um `[AVISO]` no log da equipe. Em Python, um campo antigo na `Acao`
-(`acao.throttle = 1`) dá erro com o nome novo. Em C só existe a API nova (structs do `arena.h`).
 
 ## Ajudantes de matemática (no arquivo da equipe)
 

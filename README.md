@@ -154,7 +154,6 @@ O motivo de um Compilation Error aparece no botão *Ver Erro*, sem acentos (de p
 | `a funcao 'Acao pensar(const Estado *e)' nao esta definida` | C | Escreva o corpo da função (não basta declará-la). |
 | `o metodo pensar esta errado ou fora da classe principal` | Java | `public static Acao pensar(Estado e)`, dentro da classe pública do arquivo (`public class MeuBot extends Arena`). |
 | `a classe do seu bot nao pode se chamar Arena` | Java | Use outro nome, por exemplo `MeuBot`. |
-| `o campo 'hp' agora se chama vida` (ou outro campo) | C, C++, Java | O campo tem um nome novo, em português: troque pelo nome que a mensagem indica. Todos estão no arquivo de apoio. |
 | `nao crie a funcao main()` | C, C++ | O programa principal é o da arena: apague a sua `main`. (Em Java, um `main` a mais é ignorado.) |
 | `remova a linha 'package'` | Java | Envie um único arquivo, sem `package`. |
 | `a biblioteca externa '...' nao e permitida` | Python | Só a biblioteca padrão (`math`, `random`, `collections`, `heapq`...) e o `arena`. numpy não existe no servidor, e outros arquivos seus também não: só um arquivo é enviado. |
@@ -171,7 +170,7 @@ O motivo de um Compilation Error aparece no botão *Ver Erro*, sem acentos (de p
 | Em C, o tanque ou a torre viram para 0 grau sozinhos | Em C os 5 campos da ação são sempre enviados. Comece de `a.direcao = e->eu.angulo_chassi;` e `a.angulo_torre = e->eu.angulo_torre;`. |
 | O tanque não atira | Atirar precisa de `frames_para_atirar == 0` e `energia >= 20`. O escudo gasta energia a cada frame ligado. |
 | `print`/`printf`/`System.out` não aparece | A saída padrão é do executor e vai para um log descartado. Depure na sua máquina (com o `verificar.py`) ou pelo visualizador. |
-| `[AVISO]` no log do treino ("Avisos do seu código") | O bot funcionou, mas usou um nome antigo de campo da ação ou um valor que não é número. O aviso diz o que trocar. |
+| `[AVISO]` no log do treino ("Avisos do seu código") | O bot funcionou, mas pôs na ação um valor que não é número. O aviso diz qual campo foi ignorado. |
 | O tanque some no meio da partida | Cada resposta tem 50 ms. 20 frames seguidos sem resposta, ou o programa encerrado (`exit`, erro fatal), eliminam o tanque. Evite laços pesados a cada frame. |
 
 ## Visualizador (Linux)

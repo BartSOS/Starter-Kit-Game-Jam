@@ -27,7 +27,6 @@ Comentários não contam: `system(` ou `class X` escritos dentro de comentário 
 | Função `main` no código | `ERRO DE VALIDACAO: nao crie a funcao main(): a arena ja tem a dela. Apague a sua main().` | Apague a `main` |
 | Chamada a `system(` | `ERRO DE VALIDACAO: uso de funcoes de sistema (system) nao e permitido.` | Remova |
 | `#include` com caminho absoluto ou `..` | `ERRO DE VALIDACAO: o #include "<caminho>" (linha N) nao e permitido: use apenas as bibliotecas padrao e os arquivos do kit (arena.h, arena.hpp, nlohmann/json.hpp).` | Use só bibliotecas padrão e `arena.h` |
-| Usa um campo com o nome antigo, em inglês (ex.: `e->self.hp`) | `ERRO DE VALIDACAO: o campo 'hp' agora se chama vida. Os nomes estao no arquivo de apoio (arena.h, arena.hpp ou Arena.java).` (ver a tabela de nomes abaixo) | Troque pelo nome novo (`e->eu.vida`) |
 | Usa `distancia`, `angulo_para` ou `diferenca_angulo` sem defini-las | `ERRO DE COMPILACAO: ...` com `undefined reference to 'distancia'` (ou o nome da função) | Copie as funções da seção AJUDANTES do `bot.c` do kit (elas não vêm no `arena.h`) |
 
 ## C++
@@ -39,9 +38,8 @@ Comentários não contam: `system(` ou `class X` escritos dentro de comentário 
 | Função `main` no código | `ERRO DE VALIDACAO: nao crie a funcao main(): a arena ja tem a dela. Apague a sua main().` | Apague a `main` |
 | Chamada a `system(` | `ERRO DE VALIDACAO: uso de funcoes de sistema (system) nao e permitido.` | Remova |
 | `#include` com caminho absoluto ou `..` | mesma mensagem do C | Use só bibliotecas padrão e `"arena.hpp"` |
-| Campo com o nome antigo (ex.: `e.self.hp`) | mesma mensagem do C (`o campo 'hp' agora se chama vida. ...`) | Troque pelo nome novo |
 
-`#include "arena.hpp"` é aceito (e já vem incluído pela arena). A API antiga em JSON (`json pensar(const json& estado)`, com `#include <nlohmann/json.hpp>`) continua aceita: o bot compila e a partida roda, com um `[AVISO]` quando a ação usa chaves antigas.
+`#include "arena.hpp"` é aceito (e já vem incluído pela arena).
 
 ## Java
 
@@ -53,35 +51,8 @@ Comentários não contam: `system(` ou `class X` escritos dentro de comentário 
 | Nenhuma classe no arquivo | `ERRO DE VALIDACAO: nenhuma classe foi encontrada no codigo Java.` | Escreva a classe |
 | A classe pública se chama `Arena` ou `JavaRunner` | `ERRO DE VALIDACAO: a classe do seu bot nao pode se chamar Arena (nome usado pela arena): use, por exemplo, 'public class MeuBot extends Arena'.` | Troque o nome da classe |
 | `pensar` não estática, com outra assinatura ou fora da classe principal (em classe aninhada, por exemplo) | `ERRO DE VALIDACAO: o metodo pensar esta errado ou fora da classe principal: use exatamente 'public static Acao pensar(Estado e)', dentro da classe publica do arquivo (que comeca com 'public class MeuBot extends Arena').` | Use a assinatura do kit, na classe pública |
-| Campo com o nome antigo (ex.: `e.self`) | mesma mensagem do C (`o campo 'self' agora se chama eu. ...`) | Troque pelo nome novo |
 
-A classe principal é a pública do arquivo (ou, se não houver, a que contém `pensar`). Ela estende `Arena` (o arquivo de apoio `Arena.java`), que traz `Estado`, `Acao`, `FRENTE`, `PARADO`, `RE` e as demais constantes. Classes auxiliares no nível do arquivo (sem `public`) funcionam, mas o mais simples é deixá-las dentro da classe principal, como o kit faz. Um `main` extra é ignorado. A API antiga (`public static JsonObject pensar(JsonObject estado)`) continua aceita, com `[AVISO]` quando a ação usa chaves antigas.
-
-## Nomes antigos (C, C++ e Java)
-
-Quando o compilador reclama de um campo que não existe e o nome é um dos antigos, a mensagem diz o novo:
-
-| Antigo | Novo |
-| :--- | :--- |
-| `tick` | `frame` |
-| `self` | `eu` |
-| `enemies`, `n_enemies` | `inimigos` (e `n_inimigos`) |
-| `hazards`, `n_hazards` | `perigos` (e `n_perigos`) |
-| `items`, `n_items` | `itens` (e `n_itens`) |
-| `vx`, `vy` | `vel_x`, `vel_y` (em unidades por frame) |
-| `angle` | `angulo_chassi` |
-| `turret_angle` | `angulo_torre` |
-| `hp` | `vida` |
-| `energy` | `energia` |
-| `cooldown` | `frames_para_atirar` |
-| `radius` | `raio` |
-| `timer` | `frames_ate_impacto` |
-| `duration` | `frames_restantes` |
-| `type` | `tipo` |
-| `throttle` | `mover (FRENTE, PARADO ou RE)` |
-| `turn` | `direcao (para onde o tanque deve apontar, em graus)` |
-| `shoot` | `atirar` |
-| `shield` | `ligar_escudo (na acao) ou escudo_ativo (no estado)` |
+A classe principal é a pública do arquivo (ou, se não houver, a que contém `pensar`). Ela estende `Arena` (o arquivo de apoio `Arena.java`), que traz `Estado`, `Acao`, `FRENTE`, `PARADO`, `RE` e as demais constantes. Classes auxiliares no nível do arquivo (sem `public`) funcionam, mas o mais simples é deixá-las dentro da classe principal, como o kit faz. Um `main` extra é ignorado.
 
 ## Python
 
@@ -104,7 +75,7 @@ Todas as mensagens abaixo começam com `ERRO DE VALIDACAO: `.
 
 Aceitos: `from arena import *` (o arquivo de apoio do kit), `def pensar(estado, extra=None)`, `pensar = lambda estado: ...`, `from __future__ import ...`, `input()` dentro de uma função, qualquer módulo da biblioteca padrão (exceto `os`, `subprocess` e `importlib`).
 
-Em Python os nomes antigos não dão erro de validação: um campo inexistente só aparece na partida (`AttributeError` no log do bot). A ação em dicionário com as chaves antigas (`{"throttle": 1, ...}`) continua aceita, com um `[AVISO]`. Um valor que não é número (ex.: `acao.mover = "rapido"`) é ignorado, com o aviso `[AVISO] ... o campo foi ignorado (este aviso aparece so uma vez)`.
+Em Python um campo inexistente não dá erro de validação: ele só aparece na partida (`AttributeError` no log do bot). O `pensar` deve devolver uma `Acao`. Um valor que não é número (ex.: `acao.mover = "rapido"`) é ignorado, com o aviso `[AVISO] ... o campo foi ignorado (este aviso aparece so uma vez)`.
 
 ## Decisões que a organização deve confirmar
 
