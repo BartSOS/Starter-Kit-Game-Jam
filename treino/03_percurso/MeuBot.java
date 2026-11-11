@@ -1,226 +1,139 @@
 // =============================================================================
-// GAME JAM PET 2026 - TREINO 03: Percorrer pontos em ordem (Java)
+// GAME JAM PET 2026 - TREINO 03: Percorrer os pontos em ordem (Java)
 // =============================================================================
-// Envie este arquivo na guia Treino e complete o TODO: o resto já funciona.
-// Mesmas regras do java/MeuBot.java.
+// Complete os passos marcados com TODO dentro de pensar(). Do jeito que está,
+// o modelo já compila e roda, mas o tanque fica parado.
+//
+// REGRAS
+// 1. Não escreva main() nem leia o teclado (Scanner, System.in): a arena já
+//    tem o main dela e chama pensar() por você, uma vez por frame
+//    (1 frame = 0,1 segundo).
+// 2. Escreva só dentro de pensar() e, se quiser, nos métodos do fim da classe
+//    e nas variáveis static. Não mude as linhas "public class MeuBot extends
+//    Arena" e "public static Acao pensar(Estado e)". Não use "package".
+// 3. pensar() termina com "return acao;": o que estiver em acao é o que o
+//    tanque faz.
+// 4. Não use System.out: a arena usa a saída do programa. Para depurar, use
+//    System.err.println(...) e teste no seu computador com o verificar.py
+//    (o resultado do treino não mostra o System.err).
+// 5. Uma variável static (declarada fora de pensar) guarda o valor de um
+//    frame para o outro: é a memória do seu tanque.
+// 6. Envie só este arquivo, na própria fase da guia Treino. O Arena.java fica
+//    na mesma pasta e já está no servidor.
+//
+// O QUE VOCÊ RECEBE (tudo explicado no Arena.java)
+//   e.frame           número do frame (começa em 0)
+//   e.eu              o seu tanque (Tanque): x, y, angulo_chassi, angulo_torre,
+//                     vida, energia, frames_para_atirar, escudo_ativo
+//   e.pontos[i]       pontos da fase (Ponto: id, x, y, raio); são e.n_pontos
+//
+// O QUE VOCÊ DEVOLVE (acao)
+//   acao.mover          FRENTE, PARADO ou RE (0.5 = metade da velocidade)
+//   acao.direcao        para onde o chassi deve apontar, em graus; ele gira
+//                       até 9 graus por frame até chegar lá
+//   acao.angulo_torre   para onde a torre aponta, em graus (chega na hora)
+//   acao.atirar         true atira, false não atira
+//   acao.ligar_escudo   true liga o escudo neste frame, false desliga
+//   Ângulos: graus de 0 a 360; 0 aponta para +x e 90 aponta para +y.
 // =============================================================================
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+public class MeuBot extends Arena {
 
-import java.util.ArrayList;
-import java.util.List;
-
-public class MeuBot {
-
-    // -------------------------------------------------------------------------
-    // AJUDANTES (opcional: renomeie, altere ou apague)
-    // -------------------------------------------------------------------------
-    // Eles só facilitam o acesso aos atributos do estado e não decidem nada por
-    // você. Se preferir, apague esta seção inteira e leia o JsonObject 'estado'
-    // direto (veja o formato em README.md / enunciado).
-
-    public static final int HAZARD_ARTILHARIA = 0;  // explode em (x, y) com raio 'radius' quando 'timer' zera
-    public static final int HAZARD_LASER = 1;       // feixe que gira a partir de (x, y) na direção 'angle'
-    public static final int ITEM_CURA = 0;          // recupera vida
-    public static final int ITEM_ENERGIA = 1;       // recupera energia
-
-    /** O seu tanque (devolvido por eu). */
-    public static class Tanque {
-        public int id;                  // identificador
-        public double x, y;             // posição (arena de 1000 x 1000)
-        public double vx, vy;           // velocidade, em unidades/s
-        public double angle;            // direção do chassi, graus [0, 360)
-        public double turretAngle;      // direção da torre, graus [0, 360)
-        public double hp;               // vida, de 0 a 100
-        public double energy;           // energia, de 0 a 100
-        public double cooldown;         // segundos até poder atirar (0 = pronto)
-        public boolean shield;          // escudo ativo agora
-    }
-
-    /** Um adversário vivo (a vida dele não é informada). */
-    public static class Inimigo {
-        public int id;
-        public double x, y;
-        public double vx, vy;
-    }
-
-    /** Um perigo da arena (artilharia ou laser). */
-    public static class Hazard {
-        public int id;
-        public int tipo;                // HAZARD_ARTILHARIA ou HAZARD_LASER
-        public double x, y;
-        public double radius;           // raio de efeito
-        public double timer;            // segundos até o impacto / a ativação
-        public double angle;            // direção do feixe (laser), graus
-        public double duration;         // segundos de efeito (laser)
-    }
-
-    /** Um item coletável no mapa. */
-    public static class Item {
-        public int id;
-        public int tipo;                // ITEM_CURA ou ITEM_ENERGIA
-        public double x, y;
-    }
-
-    /** Lê um número do JSON (0 se a chave não existir). */
-    private static double num(JsonObject o, String chave) {
-        return o.has(chave) ? o.get(chave).getAsDouble() : 0.0;
-    }
-
-    /** Número do tick atual (10 ticks por segundo). */
-    public static int tick(JsonObject estado) {
-        return (int) num(estado, "tick");
-    }
-
-    /** Seu tanque. */
-    public static Tanque eu(JsonObject estado) {
-        Tanque t = new Tanque();
-        if (!estado.has("self")) return t;
-        JsonObject d = estado.getAsJsonObject("self");
-        t.id = (int) num(d, "id");
-        t.x = num(d, "x");
-        t.y = num(d, "y");
-        t.vx = num(d, "vx");
-        t.vy = num(d, "vy");
-        t.angle = num(d, "angle");
-        t.turretAngle = num(d, "turret_angle");
-        t.hp = num(d, "hp");
-        t.energy = num(d, "energy");
-        t.cooldown = num(d, "cooldown");
-        t.shield = d.has("shield") && d.get("shield").getAsBoolean();
-        return t;
-    }
-
-    /** Lista dos adversários vivos. */
-    public static List<Inimigo> inimigos(JsonObject estado) {
-        List<Inimigo> lista = new ArrayList<>();
-        if (!estado.has("enemies")) return lista;
-        for (JsonElement e : estado.getAsJsonArray("enemies")) {
-            JsonObject d = e.getAsJsonObject();
-            Inimigo i = new Inimigo();
-            i.id = (int) num(d, "id");
-            i.x = num(d, "x");
-            i.y = num(d, "y");
-            i.vx = num(d, "vx");
-            i.vy = num(d, "vy");
-            lista.add(i);
-        }
-        return lista;
-    }
-
-    /** Lista dos perigos ativos (artilharia e laser). */
-    public static List<Hazard> perigos(JsonObject estado) {
-        List<Hazard> lista = new ArrayList<>();
-        if (!estado.has("hazards")) return lista;
-        for (JsonElement e : estado.getAsJsonArray("hazards")) {
-            JsonObject d = e.getAsJsonObject();
-            Hazard h = new Hazard();
-            h.id = (int) num(d, "id");
-            h.tipo = d.has("type") && d.get("type").getAsString().equals("LASER") ? HAZARD_LASER : HAZARD_ARTILHARIA;
-            h.x = num(d, "x");
-            h.y = num(d, "y");
-            h.radius = num(d, "radius");
-            h.timer = num(d, "timer");
-            h.angle = num(d, "angle");
-            h.duration = num(d, "duration");
-            lista.add(h);
-        }
-        return lista;
-    }
-
-    /** Lista dos itens no mapa. */
-    public static List<Item> itens(JsonObject estado) {
-        List<Item> lista = new ArrayList<>();
-        if (!estado.has("items")) return lista;
-        for (JsonElement e : estado.getAsJsonArray("items")) {
-            JsonObject d = e.getAsJsonObject();
-            Item it = new Item();
-            it.id = (int) num(d, "id");
-            it.tipo = d.has("type") && d.get("type").getAsString().equals("ENERGY") ? ITEM_ENERGIA : ITEM_CURA;
-            it.x = num(d, "x");
-            it.y = num(d, "y");
-            lista.add(it);
-        }
-        return lista;
-    }
-
-    /**
-     * Monta a ação no formato da arena, com os tipos certos.
-     *   throttle: -1.0 (ré) a 1.0 (frente)
-     *   turn: -1.0 a 1.0 (positivo aumenta o ângulo do chassi)
-     *   turretAngle: direção absoluta da torre em graus (a variante sem este
-     *                parâmetro mantém a torre onde está)
-     *   shoot, shield: true/false
-     */
-    public static JsonObject montarAcao(double throttle, double turn, double turretAngle, boolean shoot, boolean shield) {
-        JsonObject acao = montarAcao(throttle, turn, shoot, shield);
-        acao.addProperty("turret_angle", turretAngle);
-        return acao;
-    }
-
-    public static JsonObject montarAcao(double throttle, double turn, boolean shoot, boolean shield) {
-        JsonObject acao = new JsonObject();
-        acao.addProperty("throttle", throttle);
-        acao.addProperty("turn", turn);
-        acao.addProperty("shoot", shoot);
-        acao.addProperty("shield", shield);
-        return acao;
-    }
-
-    // Matemática básica (ângulos em graus; 0 = +x, cresce de +x para +y)
-
-    /** Distância entre dois pontos. */
-    public static double distancia(double x1, double y1, double x2, double y2) {
-        return Math.hypot(x2 - x1, y2 - y1);
-    }
-
-    /** Leva qualquer ângulo para o intervalo [0, 360). */
-    public static double normalizarAngulo(double graus) {
-        double a = graus % 360.0;
-        return a < 0 ? a + 360.0 : a;
-    }
-
-    /** Ângulo, em graus, do ponto (x1, y1) olhando para o ponto (x2, y2). */
-    public static double anguloPara(double x1, double y1, double x2, double y2) {
-        return normalizarAngulo(Math.atan2(y2 - y1, x2 - x1) * 180.0 / Math.PI);
-    }
-
-    /**
-     * Menor giro, em graus, para ir do ângulo 'de' ao ângulo 'para': de -180 (exclusivo) a 180.
-     * Positivo = girar no sentido em que o ângulo aumenta.
-     */
-    public static double diferencaAngulo(double de, double para) {
-        double d = normalizarAngulo(para - de);
-        return d > 180.0 ? d - 360.0 : d;
-    }
-
-    // -------------------------------------------------------------------------
-    // FIM DOS AJUDANTES
-    // -------------------------------------------------------------------------
-
+    // Memória do tanque: o estado não diz por quais pontos você já passou
+    static String[] ordem = {"P1", "P2", "P3", "P4"};  // os pontos, na ordem pedida
+    static int proximo = 0;                             // índice em ordem do próximo ponto
 
     // =========================================================================
     // SEU CÓDIGO COMEÇA AQUI
     // =========================================================================
 
-    private static int proximo = 0;   // índice do próximo ponto (static: vale entre os ticks)
+    public static Acao pensar(Estado e) {
+        Tanque meu = e.eu;                      // o seu tanque: meu.x, meu.angulo_chassi etc.
 
-    public static JsonObject pensar(JsonObject estado) {
-        Tanque meu = eu(estado);
-        JsonArray pontos = estado.has("objetivo")
-                ? estado.getAsJsonObject("objetivo").getAsJsonArray("pontos")
-                : new JsonArray();                      // fora do treino: vazio
-        if (proximo >= pontos.size()) return montarAcao(0, 0, false, false);   // terminou (ou fora do treino)
+        // A ação começa parada: preencha sempre os 5 campos
+        Acao acao = new Acao();
+        acao.mover = PARADO;
+        acao.direcao = meu.angulo_chassi;       // mantém a direção do chassi
+        acao.angulo_torre = meu.angulo_torre;   // mantém a torre
+        acao.atirar = false;
+        acao.ligar_escudo = false;
 
-        JsonObject p = pontos.get(proximo).getAsJsonObject();      // P1, P2... na ordem
-        double px = num(p, "x"), py = num(p, "y"), raio = num(p, "raio");
-        double d = distancia(meu.x, meu.y, px, py);
+        if (proximo == 4) {
+            return acao;                        // passou pelos 4: pode parar
+        }
 
-        // TODO: chegou (d <= raio)? Passe para o próximo ponto.
+        // PRONTO: achar na lista o ponto cujo id é ordem[proximo] ("P1", depois
+        // "P2"...). O ponto mais perto quase nunca é o próximo.
+        int indice = -1;                        // -1 = não achou
+        for (int i = 0; i < e.n_pontos; i++) {
+            Ponto p = e.pontos[i];
+            if (p.id.equals(ordem[proximo])) {
+                indice = i;
+            }
+        }
+        if (indice == -1) {
+            return acao;                        // fora do treino não há pontos: fica parado
+        }
+        Ponto alvo = e.pontos[indice];
 
-        double giro = diferencaAngulo(meu.angle, anguloPara(meu.x, meu.y, px, py));
-        return montarAcao(1.0, Math.max(-1.0, Math.min(1.0, giro / 30.0)), false, false);
+        if (e.frame == 0) {                     // depuração: mostra o primeiro ponto
+            System.err.println(alvo.id + " em (" + alvo.x + ", " + alvo.y + ")");
+        }
+
+        // TODO PASSO 1: calcule a distância do tanque até o alvo, com
+        //   distancia(meu.x, meu.y, alvo.x, alvo.y).
+
+        // TODO PASSO 2: se a distância for menor que alvo.raio, você chegou a
+        //   esse ponto: some 1 em proximo (proximo = proximo + 1) e devolva a
+        //   ação (return acao;). No frame seguinte o laço já procura o próximo.
+
+        // TODO PASSO 3: ponha em acao.direcao o ângulo até o alvo, com
+        //   angulo_para(meu.x, meu.y, alvo.x, alvo.y).
+
+        // TODO PASSO 4: ande para a frente: acao.mover = FRENTE.
+
+        return acao;
     }
+
+
+    // -------------------------------------------------------------------------
+    // AJUDANTES (opcional: use, mude ou apague)
+    // -------------------------------------------------------------------------
+    // Matemática básica, com ângulos em graus (0 aponta para +x; 90, para +y).
+    // Elas só calculam: não decidem nada por você.
+    // -------------------------------------------------------------------------
+
+    // Distância entre o ponto (x1, y1) e o ponto (x2, y2)
+    public static double distancia(double x1, double y1, double x2, double y2) {
+        double dx = x2 - x1;                    // quanto falta em x
+        double dy = y2 - y1;                    // quanto falta em y
+        return Math.sqrt(dx * dx + dy * dy);    // Pitágoras
+    }
+
+    // Ângulo, em graus (de 0 a 360), de quem está em (x1, y1) olhando para (x2, y2)
+    public static double angulo_para(double x1, double y1, double x2, double y2) {
+        double radianos = Math.atan2(y2 - y1, x2 - x1);  // atan2 devolve radianos, de -pi a pi
+        double graus = radianos * 180.0 / Math.PI;       // em graus: de -180 a 180
+        if (graus < 0) {
+            graus = graus + 360.0;                       // passa para 0 a 360
+        }
+        return graus;
+    }
+
+    // Quanto girar para ir do ângulo "de" ao ângulo "para" pelo caminho mais
+    // curto: de -180 a 180 graus. Positivo = o ângulo aumenta; negativo = diminui.
+    public static double diferenca_angulo(double de, double para) {
+        double d = para - de;
+        while (d > 180.0) {
+            d = d - 360.0;                      // mais de meia volta: vai pelo outro lado
+        }
+        while (d <= -180.0) {
+            d = d + 360.0;
+        }
+        return d;
+    }
+
+    // -------------------------------------------------------------------------
+    // FIM DOS AJUDANTES
+    // -------------------------------------------------------------------------
 }

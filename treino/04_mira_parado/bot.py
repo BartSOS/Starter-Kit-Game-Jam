@@ -1,148 +1,43 @@
 # =============================================================================
 # GAME JAM PET 2026 - TREINO 04: Acertar alvos parados (Python 3)
 # =============================================================================
-# Envie este arquivo na guia Treino e complete o TODO: o resto já funciona.
-# Mesmas regras do python/bot.py.
+# Complete os passos marcados com TODO dentro de pensar(). Do jeito que está,
+# o modelo já roda, mas o tanque não atira.
+#
+# REGRAS
+# 1. Não leia a entrada (nada de input() nem sys.stdin): a arena já faz isso e
+#    chama pensar() por você, uma vez por frame (1 frame = 0,1 segundo).
+# 2. Escreva só dentro de pensar() e, se quiser, nas funções do fim do arquivo
+#    e nas variáveis globais. Não mude a linha "def pensar(estado):".
+# 3. pensar() termina com "return acao": o que estiver em acao é o que o
+#    tanque faz.
+# 4. Para depurar, use print(...) e teste no seu computador com o verificar.py
+#    (o resultado do treino não mostra o print).
+# 5. Envie só este arquivo, na própria fase da guia Treino. O arena.py fica na
+#    mesma pasta e já está no servidor.
+#
+# O QUE VOCÊ RECEBE (tudo explicado no arena.py)
+#   estado.frame       número do frame (começa em 0)
+#   estado.eu          o seu tanque (Tanque): x, y, angulo_chassi, angulo_torre,
+#                      vida, energia, frames_para_atirar, escudo_ativo
+#   estado.inimigos    lista dos alvos vivos (Inimigo: id, x, y, vel_x, vel_y).
+#                      Um alvo destruído sai da lista.
+#
+# O QUE VOCÊ DEVOLVE (acao)
+#   acao.mover          FRENTE, PARADO ou RE (0.5 = metade da velocidade)
+#   acao.direcao        para onde o chassi deve apontar, em graus; ele gira
+#                       até 9 graus por frame até chegar lá
+#   acao.angulo_torre   para onde a torre aponta, em graus (chega na hora)
+#   acao.atirar         True atira, False não atira
+#   acao.ligar_escudo   True liga o escudo neste frame, False desliga
+#   Ângulos: graus de 0 a 360; 0 aponta para +x e 90 aponta para +y.
+#
+#   O tiro só sai se acao.atirar = True, meu.frames_para_atirar for 0 e
+#   meu.energia for pelo menos 20 (cada tiro gasta 20).
 # =============================================================================
 
+from arena import *
 import math
-
-# -----------------------------------------------------------------------------
-# AJUDANTES (opcional: renomeie, altere ou apague)
-# -----------------------------------------------------------------------------
-# Eles só facilitam o acesso aos atributos do estado e não decidem nada por
-# você. Se preferir, apague esta seção inteira e leia o dicionário 'estado'
-# direto (veja o formato em README.md / enunciado).
-
-HAZARD_ARTILHARIA = 0   # explode em (x, y) com raio 'radius' quando 'timer' zera
-HAZARD_LASER = 1        # feixe que gira a partir de (x, y) na direção 'angle'
-ITEM_CURA = 0           # recupera vida
-ITEM_ENERGIA = 1        # recupera energia
-
-
-class Tanque:
-    """O seu tanque (devolvido por eu)."""
-
-    def __init__(self, d):
-        self.id = d.get("id", 0)                          # identificador
-        self.x = d.get("x", 0.0)                          # posição (arena de 1000 x 1000)
-        self.y = d.get("y", 0.0)
-        self.vx = d.get("vx", 0.0)                        # velocidade, em unidades/s
-        self.vy = d.get("vy", 0.0)
-        self.angle = d.get("angle", 0.0)                  # direção do chassi, graus [0, 360)
-        self.turret_angle = d.get("turret_angle", 0.0)    # direção da torre, graus [0, 360)
-        self.hp = d.get("hp", 0.0)                        # vida, de 0 a 100
-        self.energy = d.get("energy", 0.0)                # energia, de 0 a 100
-        self.cooldown = d.get("cooldown", 0.0)            # segundos até poder atirar (0 = pronto)
-        self.shield = d.get("shield", False)              # escudo ativo agora
-
-
-class Inimigo:
-    """Um adversário vivo (a vida dele não é informada)."""
-
-    def __init__(self, d):
-        self.id = d.get("id", 0)
-        self.x = d.get("x", 0.0)
-        self.y = d.get("y", 0.0)
-        self.vx = d.get("vx", 0.0)
-        self.vy = d.get("vy", 0.0)
-
-
-class Hazard:
-    """Um perigo da arena (artilharia ou laser)."""
-
-    def __init__(self, d):
-        self.id = d.get("id", 0)
-        self.tipo = HAZARD_LASER if d.get("type") == "LASER" else HAZARD_ARTILHARIA
-        self.x = d.get("x", 0.0)
-        self.y = d.get("y", 0.0)
-        self.radius = d.get("radius", 0.0)                # raio de efeito
-        self.timer = d.get("timer", 0.0)                  # segundos até o impacto/ativação
-        self.angle = d.get("angle", 0.0)                  # direção do feixe (laser), graus
-        self.duration = d.get("duration", 0.0)            # segundos de efeito (laser)
-
-
-class Item:
-    """Um item coletável no mapa."""
-
-    def __init__(self, d):
-        self.id = d.get("id", 0)
-        self.tipo = ITEM_ENERGIA if d.get("type") == "ENERGY" else ITEM_CURA
-        self.x = d.get("x", 0.0)
-        self.y = d.get("y", 0.0)
-
-
-def tick(estado):
-    """Número do tick atual (10 ticks por segundo)."""
-    return estado.get("tick", 0)
-
-
-def eu(estado):
-    """Seu tanque."""
-    return Tanque(estado.get("self", {}))
-
-
-def inimigos(estado):
-    """Lista dos adversários vivos."""
-    return [Inimigo(d) for d in estado.get("enemies", [])]
-
-
-def perigos(estado):
-    """Lista dos perigos ativos (artilharia e laser)."""
-    return [Hazard(d) for d in estado.get("hazards", [])]
-
-
-def itens(estado):
-    """Lista dos itens no mapa."""
-    return [Item(d) for d in estado.get("items", [])]
-
-
-def montar_acao(throttle=0.0, turn=0.0, turret_angle=None, shoot=False, shield=False):
-    """Monta a ação no formato da arena, com os tipos certos.
-
-    throttle: -1.0 (ré) a 1.0 (frente)
-    turn: -1.0 a 1.0 (positivo aumenta o ângulo do chassi)
-    turret_angle: direção absoluta da torre em graus; None mantém a torre onde está
-    shoot, shield: True/False
-    """
-    acao = {
-        "throttle": float(throttle),
-        "turn": float(turn),
-        "shoot": bool(shoot),
-        "shield": bool(shield),
-    }
-    if turret_angle is not None:
-        acao["turret_angle"] = float(turret_angle)
-    return acao
-
-
-# Matemática básica (ângulos em graus; 0 = +x, cresce de +x para +y)
-
-def distancia(x1, y1, x2, y2):
-    """Distância entre dois pontos."""
-    return math.hypot(x2 - x1, y2 - y1)
-
-
-def normalizar_angulo(graus):
-    """Leva qualquer ângulo para o intervalo [0, 360)."""
-    a = math.fmod(graus, 360.0)
-    return a + 360.0 if a < 0 else a
-
-
-def angulo_para(x1, y1, x2, y2):
-    """Ângulo, em graus, do ponto (x1, y1) olhando para o ponto (x2, y2)."""
-    return normalizar_angulo(math.atan2(y2 - y1, x2 - x1) * 180.0 / math.pi)
-
-
-def diferenca_angulo(de, para):
-    """Menor giro, em graus, para ir do ângulo 'de' ao ângulo 'para': de -180 (exclusivo) a 180.
-    Positivo = girar no sentido em que o ângulo aumenta."""
-    d = normalizar_angulo(para - de)
-    return d - 360.0 if d > 180.0 else d
-
-# -----------------------------------------------------------------------------
-# FIM DOS AJUDANTES
-# -----------------------------------------------------------------------------
 
 
 # =============================================================================
@@ -150,15 +45,76 @@ def diferenca_angulo(de, para):
 # =============================================================================
 
 def pensar(estado):
-    meu = eu(estado)
-    alvos = inimigos(estado)                    # os alvos da fase chegam como inimigos
-    if not alvos:
-        return montar_acao()
+    meu = estado.eu                         # o seu tanque: meu.x, meu.energia etc.
 
-    alvo = alvos[0]                             # alvo.x, alvo.y
+    # A ação começa parada: preencha sempre os 5 campos
+    acao = Acao()
+    acao.mover = PARADO
+    acao.direcao = meu.angulo_chassi        # mantém a direção do chassi
+    acao.angulo_torre = meu.angulo_torre    # mantém a torre
+    acao.atirar = False
+    acao.ligar_escudo = False
 
-    # TODO: apontar a torre para o alvo (angulo_para) e atirar quando der (meu.cooldown, meu.energy).
-    torre = meu.turret_angle
-    atirar = False
+    if len(estado.inimigos) == 0:
+        return acao                         # nenhum alvo vivo: nada a fazer
 
-    return montar_acao(turret_angle=torre, shoot=atirar)
+    # PRONTO: escolher o alvo. Aqui é sempre o primeiro da lista.
+    alvo = estado.inimigos[0]
+
+    if estado.frame == 0:                   # depuração: mostra o primeiro alvo
+        print("alvo", alvo.id, "em x =", round(alvo.x), "y =", round(alvo.y))
+
+    # TODO PASSO 1: aponte a torre para o alvo: ponha em acao.angulo_torre
+    #   o ângulo angulo_para(meu.x, meu.y, alvo.x, alvo.y).
+
+    # TODO PASSO 2: atire (acao.atirar = True) só se o tiro puder sair:
+    #   meu.frames_para_atirar igual a 0 e meu.energia de pelo menos 20.
+
+    # TODO PASSO 3 (para 3 balões): enquanto o tiro voa, o alvo continua
+    #   na lista, e o passo 2 atira nele de novo. Para não gastar tiro:
+    #   a) crie, fora de pensar, uma lista global com os ids que já levaram
+    #      tiro: atirados = []
+    #   b) ao atirar, guarde o id: atirados.append(alvo.id) (o append muda
+    #      a lista sem precisar de "global");
+    #   c) no lugar do "PRONTO" acima, escolha com um laço o primeiro
+    #      inimigo cujo id não está em atirados (inimigo.id not in atirados).
+
+    return acao
+
+
+# -----------------------------------------------------------------------------
+# AJUDANTES (opcional: use, mude ou apague)
+# -----------------------------------------------------------------------------
+# Matemática básica, com ângulos em graus (0 aponta para +x; 90, para +y).
+# Elas só calculam: não decidem nada por você.
+# -----------------------------------------------------------------------------
+
+# Distância entre o ponto (x1, y1) e o ponto (x2, y2)
+def distancia(x1, y1, x2, y2):
+    dx = x2 - x1                            # quanto falta em x
+    dy = y2 - y1                            # quanto falta em y
+    return math.sqrt(dx * dx + dy * dy)     # Pitágoras
+
+
+# Ângulo, em graus (de 0 a 360), de quem está em (x1, y1) olhando para (x2, y2)
+def angulo_para(x1, y1, x2, y2):
+    radianos = math.atan2(y2 - y1, x2 - x1)     # atan2 devolve radianos, de -pi a pi
+    graus = radianos * 180.0 / math.pi          # em graus: de -180 a 180
+    if graus < 0:
+        graus = graus + 360.0                   # passa para 0 a 360
+    return graus
+
+
+# Quanto girar para ir do ângulo "de" ao ângulo "para" pelo caminho mais
+# curto: de -180 a 180 graus. Positivo = o ângulo aumenta; negativo = diminui.
+def diferenca_angulo(de, para):
+    d = para - de
+    while d > 180.0:
+        d = d - 360.0                       # mais de meia volta: vai pelo outro lado
+    while d <= -180.0:
+        d = d + 360.0
+    return d
+
+# -----------------------------------------------------------------------------
+# FIM DOS AJUDANTES
+# -----------------------------------------------------------------------------

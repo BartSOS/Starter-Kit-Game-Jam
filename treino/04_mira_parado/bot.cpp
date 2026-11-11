@@ -1,198 +1,135 @@
 // =============================================================================
 // GAME JAM PET 2026 - TREINO 04: Acertar alvos parados (C++20)
 // =============================================================================
-// Envie este arquivo na guia Treino e complete o TODO: o resto já funciona.
-// Mesmas regras do cpp/bot.cpp.
+// Complete os passos marcados com TODO dentro de pensar(). Do jeito que está,
+// o modelo já compila e roda, mas o tanque não atira.
+//
+// REGRAS
+// 1. Não escreva main(): a arena já tem a dela e chama pensar() por você,
+//    uma vez por frame (1 frame = 0,1 segundo).
+// 2. Escreva só dentro de pensar() e, se quiser, nas funções do fim do arquivo
+//    e nas variáveis globais. Não mude a linha "Acao pensar(const Estado& e)".
+// 3. pensar() termina com "return acao;": o que estiver em acao é o que o
+//    tanque faz.
+// 4. Não use cout nem cin: a arena usa a entrada e a saída do programa.
+//    Para depurar, use cerr << ... e teste no seu computador com o
+//    verificar.py (o resultado do treino não mostra o cerr).
+// 5. Uma variável global (fora de pensar) guarda o valor de um frame para o
+//    outro: é a memória do tanque.
+// 6. Envie só este arquivo, na própria fase da guia Treino. O arena.hpp fica na
+//    mesma pasta e já está no servidor.
+//
+// O QUE VOCÊ RECEBE (tudo explicado no arena.hpp)
+//   e.frame           número do frame (começa em 0)
+//   e.eu              o seu tanque (Tanque): x, y, angulo_chassi, angulo_torre,
+//                     vida, energia, frames_para_atirar, escudo_ativo
+//   e.inimigos[i]     alvos vivos (Inimigo: id, x, y, vel_x, vel_y); são
+//                     e.n_inimigos. Um alvo destruído sai da lista.
+//
+// O QUE VOCÊ DEVOLVE (acao)
+//   acao.mover          FRENTE, PARADO ou RE (0.5 = metade da velocidade)
+//   acao.direcao        para onde o chassi deve apontar, em graus; ele gira
+//                       até 9 graus por frame até chegar lá
+//   acao.angulo_torre   para onde a torre aponta, em graus (chega na hora)
+//   acao.atirar         true atira, false não atira
+//   acao.ligar_escudo   true liga o escudo neste frame, false desliga
+//   Ângulos: graus de 0 a 360; 0 aponta para +x e 90 aponta para +y.
+//
+//   O tiro só sai se acao.atirar = true, meu.frames_para_atirar for 0 e
+//   meu.energia for pelo menos 20 (cada tiro gasta 20).
 // =============================================================================
 
-#include <cmath>
-#include <vector>
-#include <nlohmann/json.hpp>
+#include "arena.hpp"
+using namespace std;
 
-using json = nlohmann::json;
-
-// -----------------------------------------------------------------------------
-// AJUDANTES (opcional: renomeie, altere ou apague)
-// -----------------------------------------------------------------------------
-// Eles só facilitam o acesso aos atributos do estado e não decidem nada por
-// você. Se preferir, apague esta seção inteira e leia o json 'estado' direto
-// (veja o formato em README.md / enunciado).
-
-enum TipoHazard { HAZARD_ARTILHARIA = 0, HAZARD_LASER = 1 };
-enum TipoItem { ITEM_CURA = 0, ITEM_ENERGIA = 1 };
-
-// O seu tanque (devolvido por eu)
-struct Tanque {
-    int    id = 0;               // identificador
-    double x = 0, y = 0;         // posição (arena de 1000 x 1000)
-    double vx = 0, vy = 0;       // velocidade, em unidades/s
-    double angle = 0;            // direção do chassi, graus [0, 360)
-    double turret_angle = 0;     // direção da torre, graus [0, 360)
-    double hp = 0;               // vida, de 0 a 100
-    double energy = 0;           // energia, de 0 a 100
-    double cooldown = 0;         // segundos até poder atirar (0 = pronto)
-    bool   shield = false;       // escudo ativo agora
-};
-
-// Um adversário vivo (a vida dele não é informada)
-struct Inimigo {
-    int    id = 0;
-    double x = 0, y = 0;
-    double vx = 0, vy = 0;
-};
-
-// Um perigo da arena (artilharia ou laser)
-struct Hazard {
-    int        id = 0;
-    TipoHazard tipo = HAZARD_ARTILHARIA;
-    double     x = 0, y = 0;
-    double     radius = 0;       // raio de efeito
-    double     timer = 0;        // segundos até o impacto / a ativação
-    double     angle = 0;        // direção do feixe (laser), graus
-    double     duration = 0;     // segundos de efeito (laser)
-};
-
-// Um item coletável no mapa
-struct Item {
-    int      id = 0;
-    TipoItem tipo = ITEM_CURA;
-    double   x = 0, y = 0;
-};
-
-// Número do tick atual (10 ticks por segundo)
-int tick(const json& estado) {
-    return estado.value("tick", 0);
-}
-
-// Seu tanque
-Tanque eu(const json& estado) {
-    Tanque t;
-    if (!estado.contains("self")) return t;
-    const json& d = estado["self"];
-    t.id = d.value("id", 0);
-    t.x = d.value("x", 0.0);
-    t.y = d.value("y", 0.0);
-    t.vx = d.value("vx", 0.0);
-    t.vy = d.value("vy", 0.0);
-    t.angle = d.value("angle", 0.0);
-    t.turret_angle = d.value("turret_angle", 0.0);
-    t.hp = d.value("hp", 0.0);
-    t.energy = d.value("energy", 0.0);
-    t.cooldown = d.value("cooldown", 0.0);
-    t.shield = d.value("shield", false);
-    return t;
-}
-
-// Lista dos adversários vivos
-std::vector<Inimigo> inimigos(const json& estado) {
-    std::vector<Inimigo> lista;
-    if (!estado.contains("enemies")) return lista;
-    for (const json& d : estado["enemies"]) {
-        Inimigo i;
-        i.id = d.value("id", 0);
-        i.x = d.value("x", 0.0);
-        i.y = d.value("y", 0.0);
-        i.vx = d.value("vx", 0.0);
-        i.vy = d.value("vy", 0.0);
-        lista.push_back(i);
-    }
-    return lista;
-}
-
-// Lista dos perigos ativos (artilharia e laser)
-std::vector<Hazard> perigos(const json& estado) {
-    std::vector<Hazard> lista;
-    if (!estado.contains("hazards")) return lista;
-    for (const json& d : estado["hazards"]) {
-        Hazard h;
-        h.id = d.value("id", 0);
-        h.tipo = d.value("type", std::string()) == "LASER" ? HAZARD_LASER : HAZARD_ARTILHARIA;
-        h.x = d.value("x", 0.0);
-        h.y = d.value("y", 0.0);
-        h.radius = d.value("radius", 0.0);
-        h.timer = d.value("timer", 0.0);
-        h.angle = d.value("angle", 0.0);
-        h.duration = d.value("duration", 0.0);
-        lista.push_back(h);
-    }
-    return lista;
-}
-
-// Lista dos itens no mapa
-std::vector<Item> itens(const json& estado) {
-    std::vector<Item> lista;
-    if (!estado.contains("items")) return lista;
-    for (const json& d : estado["items"]) {
-        Item it;
-        it.id = d.value("id", 0);
-        it.tipo = d.value("type", std::string()) == "ENERGY" ? ITEM_ENERGIA : ITEM_CURA;
-        it.x = d.value("x", 0.0);
-        it.y = d.value("y", 0.0);
-        lista.push_back(it);
-    }
-    return lista;
-}
-
-// Monta a ação no formato da arena, com os tipos certos.
-//   throttle: -1.0 (ré) a 1.0 (frente)
-//   turn: -1.0 a 1.0 (positivo aumenta o ângulo do chassi)
-//   turret_angle: direção absoluta da torre em graus (a variante sem este
-//                 parâmetro mantém a torre onde está)
-//   shoot, shield: true/false
-json montar_acao(double throttle, double turn, double turret_angle, bool shoot, bool shield) {
-    return json{{"throttle", throttle}, {"turn", turn}, {"turret_angle", turret_angle},
-                {"shoot", shoot}, {"shield", shield}};
-}
-
-json montar_acao(double throttle, double turn, bool shoot, bool shield) {
-    return json{{"throttle", throttle}, {"turn", turn}, {"shoot", shoot}, {"shield", shield}};
-}
-
-// Matemática básica (ângulos em graus; 0 = +x, cresce de +x para +y)
-
-// Distância entre dois pontos
-double distancia(double x1, double y1, double x2, double y2) {
-    return std::hypot(x2 - x1, y2 - y1);
-}
-
-// Leva qualquer ângulo para o intervalo [0, 360)
-double normalizar_angulo(double graus) {
-    double a = std::fmod(graus, 360.0);
-    return a < 0 ? a + 360.0 : a;
-}
-
-// Ângulo, em graus, do ponto (x1, y1) olhando para o ponto (x2, y2)
-double angulo_para(double x1, double y1, double x2, double y2) {
-    const double pi = 3.14159265358979323846;
-    return normalizar_angulo(std::atan2(y2 - y1, x2 - x1) * 180.0 / pi);
-}
-
-// Menor giro, em graus, para ir do ângulo 'de' ao ângulo 'para': de -180 (exclusivo) a 180.
-// Positivo = girar no sentido em que o ângulo aumenta.
-double diferenca_angulo(double de, double para) {
-    double d = normalizar_angulo(para - de);
-    return d > 180.0 ? d - 360.0 : d;
-}
-
-// -----------------------------------------------------------------------------
-// FIM DOS AJUDANTES
-// -----------------------------------------------------------------------------
+// Estas funções estão no fim do arquivo (AJUDANTES)
+double distancia(double x1, double y1, double x2, double y2);
+double angulo_para(double x1, double y1, double x2, double y2);
+double diferenca_angulo(double de, double para);
 
 
 // =============================================================================
 // SEU CÓDIGO COMEÇA AQUI
 // =============================================================================
 
-json pensar(const json& estado) {
-    Tanque meu = eu(estado);
-    std::vector<Inimigo> alvos = inimigos(estado);   // os alvos da fase chegam como inimigos
-    if (alvos.empty()) return montar_acao(0.0, 0.0, false, false);
+Acao pensar(const Estado& e) {
+    Tanque meu = e.eu;                      // o seu tanque: meu.x, meu.energia etc.
 
-    Inimigo alvo = alvos[0];                         // alvo.x, alvo.y
+    // A ação começa parada: preencha sempre os 5 campos
+    Acao acao;
+    acao.mover = PARADO;
+    acao.direcao = meu.angulo_chassi;       // mantém a direção do chassi
+    acao.angulo_torre = meu.angulo_torre;   // mantém a torre
+    acao.atirar = false;
+    acao.ligar_escudo = false;
 
-    // TODO: apontar a torre para o alvo (angulo_para) e atirar quando der (meu.cooldown, meu.energy).
-    double torre = meu.turret_angle;
-    bool atirar = false;
+    if (e.n_inimigos == 0) {
+        return acao;                        // nenhum alvo vivo: nada a fazer
+    }
 
-    return montar_acao(0.0, 0.0, torre, atirar, false);
+    // PRONTO: escolher o alvo. Aqui é sempre o primeiro da lista.
+    Inimigo alvo = e.inimigos[0];
+
+    if (e.frame == 0) {                     // depuração: mostra o primeiro alvo
+        cerr << "alvo " << alvo.id << " em (" << alvo.x << ", " << alvo.y << ")" << endl;
+    }
+
+    // TODO PASSO 1: aponte a torre para o alvo: ponha em acao.angulo_torre
+    //   o ângulo angulo_para(meu.x, meu.y, alvo.x, alvo.y).
+
+    // TODO PASSO 2: atire (acao.atirar = true) só se o tiro puder sair:
+    //   meu.frames_para_atirar igual a 0 e meu.energia de pelo menos 20.
+
+    // TODO PASSO 3 (para 3 balões): enquanto o tiro voa, o alvo continua
+    //   na lista, e o passo 2 atira nele de novo. Para não gastar tiro:
+    //   a) crie, fora de pensar, uma lista global com os ids que já levaram
+    //      tiro (int atirados[10]; int n_atirados = 0;);
+    //   b) ao atirar, guarde alvo.id em atirados[n_atirados] e some 1 em
+    //      n_atirados;
+    //   c) no lugar do "PRONTO" acima, escolha com um laço o primeiro
+    //      inimigo cujo id não está em atirados.
+
+    return acao;
 }
+
+
+// -----------------------------------------------------------------------------
+// AJUDANTES (opcional: use, mude ou apague)
+// -----------------------------------------------------------------------------
+// Matemática básica, com ângulos em graus (0 aponta para +x; 90, para +y).
+// Elas só calculam: não decidem nada por você.
+// -----------------------------------------------------------------------------
+
+// Distância entre o ponto (x1, y1) e o ponto (x2, y2)
+double distancia(double x1, double y1, double x2, double y2) {
+    double dx = x2 - x1;                    // quanto falta em x
+    double dy = y2 - y1;                    // quanto falta em y
+    return sqrt(dx * dx + dy * dy);         // Pitágoras
+}
+
+// Ângulo, em graus (de 0 a 360), de quem está em (x1, y1) olhando para (x2, y2)
+double angulo_para(double x1, double y1, double x2, double y2) {
+    double radianos = atan2(y2 - y1, x2 - x1);  // atan2 devolve radianos, de -pi a pi
+    double graus = radianos * 180.0 / M_PI;     // em graus: de -180 a 180
+    if (graus < 0) {
+        graus = graus + 360.0;                  // passa para 0 a 360
+    }
+    return graus;
+}
+
+// Quanto girar para ir do ângulo "de" ao ângulo "para" pelo caminho mais
+// curto: de -180 a 180 graus. Positivo = o ângulo aumenta; negativo = diminui.
+double diferenca_angulo(double de, double para) {
+    double d = para - de;
+    while (d > 180.0) {
+        d = d - 360.0;                      // mais de meia volta: vai pelo outro lado
+    }
+    while (d <= -180.0) {
+        d = d + 360.0;
+    }
+    return d;
+}
+
+// -----------------------------------------------------------------------------
+// FIM DOS AJUDANTES
+// -----------------------------------------------------------------------------

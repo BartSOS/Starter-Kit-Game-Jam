@@ -1,55 +1,52 @@
 /* =============================================================================
  * GAME JAM PET 2026 - TREINO 06: Sobreviver à artilharia (C99)
  * =============================================================================
- * Envie este arquivo na guia Treino e complete o TODO: o resto já funciona.
- * Mesmas regras do c/bot.c.
+ * Complete os passos marcados com TODO dentro de pensar(). Do jeito que está,
+ * o modelo já compila e roda, mas o tanque fica parado (e é destruído).
+ *
+ * REGRAS
+ * 1. Não escreva main(): a arena já tem a dela e chama pensar() por você,
+ *    uma vez por frame (1 frame = 0,1 segundo).
+ * 2. Escreva só dentro de pensar() e, se quiser, nas funções do fim do arquivo
+ *    e nas variáveis globais. Não mude a linha "Acao pensar(const Estado *e)".
+ * 3. pensar() termina com "return acao;": o que estiver em acao é o que o
+ *    tanque faz.
+ * 4. Não use printf nem scanf: a arena usa a entrada e a saída do programa.
+ *    Para depurar, use fprintf(stderr, ...) e teste no seu computador com o
+ *    verificar.py (o resultado do treino não mostra o stderr).
+ * 5. Envie só este arquivo, na própria fase da guia Treino. O arena.h fica na
+ *    mesma pasta e já está no servidor.
+ *
+ * O QUE VOCÊ RECEBE (tudo explicado no arena.h)
+ *   e->frame          número do frame (começa em 0)
+ *   e->eu             o seu tanque (Tanque): x, y, angulo_chassi, angulo_torre,
+ *                     vida, energia, frames_para_atirar, escudo_ativo
+ *   e->perigos[i]     bombardeios anunciados (Perigo: x, y, raio,
+ *                     frames_ate_impacto); são e->n_perigos. Cada um aparece
+ *                     30 frames antes de explodir.
+ *   Por que "e->" e não "e.": e é um ponteiro (o endereço do estado). Copie o
+ *   que precisar para uma variável comum, como em "Tanque meu = e->eu;" ou
+ *   "Perigo perigo = e->perigos[i];", e use o ponto daí em diante: perigo.x.
+ *
+ * O QUE VOCÊ DEVOLVE (acao)
+ *   acao.mover          FRENTE, PARADO ou RE (0.5 = metade da velocidade)
+ *   acao.direcao        para onde o chassi deve apontar, em graus; ele gira
+ *                       até 9 graus por frame até chegar lá
+ *   acao.angulo_torre   para onde a torre aponta, em graus (chega na hora)
+ *   acao.atirar         1 atira, 0 não atira
+ *   acao.ligar_escudo   1 liga o escudo neste frame, 0 desliga
+ *   Ângulos: graus de 0 a 360; 0 aponta para +x e 90 aponta para +y.
+ *
+ *   Quem estiver a até uns 100 unidades do centro da explosão perde 40 de
+ *   vida. O tanque anda 5 unidades por frame.
  * ============================================================================= */
 
-#include "arena.h"   /* tipos Estado, Acao, Tanque, Inimigo, Hazard, Item e Ponto */
+#include "arena.h"
 
-/* -----------------------------------------------------------------------------
- * AJUDANTES (opcional: renomeie, altere ou apague)
- * -----------------------------------------------------------------------------
- * Em C o estado já chega tipado (arena.h), então não há acessores: use direto
- *
- *   e->tick                           número do tick atual
- *   e->self                           seu tanque (Tanque)
- *   e->inimigos[i], i < e->n_inimigos adversários vivos (Inimigo)
- *   e->hazards[i],  i < e->n_hazards  perigos da arena (Hazard)
- *   e->itens[i],    i < e->n_itens    itens no mapa (Item)
- *
- * e devolva uma Acao com os campos throttle, turn, turret_angle, shoot e
- * shield (veja o pensar() abaixo). As funções abaixo são só matemática básica
- * (ângulos em graus; 0 = +x, cresce de +x para +y). Elas não decidem nada por
- * você.
- * ----------------------------------------------------------------------------- */
-
-/* Distância entre dois pontos */
-static inline double distancia(double x1, double y1, double x2, double y2) {
-    return hypot(x2 - x1, y2 - y1);
-}
-
-/* Leva qualquer ângulo para o intervalo [0, 360) */
-static inline double normalizar_angulo(double graus) {
-    double a = fmod(graus, 360.0);
-    return a < 0 ? a + 360.0 : a;
-}
-
-/* Ângulo, em graus, do ponto (x1, y1) olhando para o ponto (x2, y2) */
-static inline double angulo_para(double x1, double y1, double x2, double y2) {
-    return normalizar_angulo(atan2(y2 - y1, x2 - x1) * 180.0 / M_PI);
-}
-
-/* Menor giro, em graus, para ir do ângulo 'de' ao ângulo 'para': de -180 (exclusivo) a 180.
- * Positivo = girar no sentido em que o ângulo aumenta. */
-static inline double diferenca_angulo(double de, double para) {
-    double d = normalizar_angulo(para - de);
-    return d > 180.0 ? d - 360.0 : d;
-}
-
-/* -----------------------------------------------------------------------------
- * FIM DOS AJUDANTES
- * ----------------------------------------------------------------------------- */
+/* Estas funções estão no fim do arquivo (AJUDANTES) */
+double distancia(double x1, double y1, double x2, double y2);
+double angulo_para(double x1, double y1, double x2, double y2);
+double diferenca_angulo(double de, double para);
 
 
 /* =============================================================================
@@ -57,15 +54,97 @@ static inline double diferenca_angulo(double de, double para) {
  * ============================================================================= */
 
 Acao pensar(const Estado *e) {
-    const Tanque *meu = &e->self;
-    Acao a = {0};
-    a.turret_angle = meu->turret_angle;         /* em C a torre é sempre enviada */
+    /* O seu tanque. Esta é a única seta (->) que você precisa: daqui em
+     * diante use meu.x, meu.angulo_chassi etc. */
+    Tanque meu = e->eu;
 
-    for (int i = 0; i < e->n_hazards; i++) {
-        const Hazard *p = &e->hazards[i];
-        if (p->tipo == HAZARD_ARTILHARIA && distancia(meu->x, meu->y, p->x, p->y) <= p->radius + 20) {   /* 20 = raio do tanque */
-            /* TODO: sair do raio antes de p->timer zerar (angulo_para, diferenca_angulo). */
+    /* A ação começa parada: preencha sempre os 5 campos */
+    Acao acao;
+    acao.mover = PARADO;
+    acao.direcao = meu.angulo_chassi;       /* mantém a direção do chassi */
+    acao.angulo_torre = meu.angulo_torre;   /* mantém a torre */
+    acao.atirar = 0;
+    acao.ligar_escudo = 0;
+
+    /* PRONTO: achar o bombardeio que explode primeiro (o de menor
+     * frames_ate_impacto). Às vezes há dois ao mesmo tempo. */
+    int mais_urgente = -1;                  /* índice em perigos[]; -1 = nenhum */
+    for (int i = 0; i < e->n_perigos; i++) {
+        Perigo p = e->perigos[i];
+        if (mais_urgente == -1 || p.frames_ate_impacto < e->perigos[mais_urgente].frames_ate_impacto) {
+            mais_urgente = i;
         }
     }
-    return a;
+    if (mais_urgente == -1) {
+        return acao;                        /* nenhum perigo agora: fica parado */
+    }
+    Perigo perigo = e->perigos[mais_urgente];
+
+    if (perigo.frames_ate_impacto == 10) {  /* depuração: uma linha por bombardeio */
+        fprintf(stderr, "frame %d: bombardeio em (%.0f, %.0f) daqui a 10 frames\n",
+                e->frame, perigo.x, perigo.y);
+    }
+
+    /* TODO PASSO 1: calcule a distância do tanque até o centro do perigo,
+     *   com distancia(meu.x, meu.y, perigo.x, perigo.y). */
+
+    /* TODO PASSO 2: se a distância for maior que perigo.raio + 40, você já
+     *   está seguro: return acao; (fica parado). */
+
+    /* TODO PASSO 3: fuja em linha reta, para longe do centro: a direção de
+     *   fuga é o ângulo DO perigo PARA o tanque,
+     *   double fuga = angulo_para(perigo.x, perigo.y, meu.x, meu.y);
+     *   (se a distância for menor que 1, o tanque está no centro e qualquer
+     *   direção serve: use fuga = meu.angulo_chassi).
+     *   Depois: acao.direcao = fuga; acao.mover = FRENTE; */
+
+    /* TODO PASSO 4: girar o chassi leva tempo (9 graus por frame). Se a fuga
+     *   estiver atrás do tanque, é mais rápido andar de ré:
+     *   se diferenca_angulo(meu.angulo_chassi, fuga) for maior que 90 ou
+     *   menor que -90, use acao.mover = RE e acao.direcao = fuga + 180
+     *   (de ré, a frente do chassi aponta para o lado oposto da fuga). */
+
+    return acao;
 }
+
+
+/* -----------------------------------------------------------------------------
+ * AJUDANTES (opcional: use, mude ou apague)
+ * -----------------------------------------------------------------------------
+ * Matemática básica, com ângulos em graus (0 aponta para +x; 90, para +y).
+ * Elas só calculam: não decidem nada por você.
+ * ----------------------------------------------------------------------------- */
+
+/* Distância entre o ponto (x1, y1) e o ponto (x2, y2) */
+double distancia(double x1, double y1, double x2, double y2) {
+    double dx = x2 - x1;                    /* quanto falta em x */
+    double dy = y2 - y1;                    /* quanto falta em y */
+    return sqrt(dx * dx + dy * dy);         /* Pitágoras */
+}
+
+/* Ângulo, em graus (de 0 a 360), de quem está em (x1, y1) olhando para (x2, y2) */
+double angulo_para(double x1, double y1, double x2, double y2) {
+    double radianos = atan2(y2 - y1, x2 - x1);  /* atan2 devolve radianos, de -pi a pi */
+    double graus = radianos * 180.0 / M_PI;     /* em graus: de -180 a 180 */
+    if (graus < 0) {
+        graus = graus + 360.0;                  /* passa para 0 a 360 */
+    }
+    return graus;
+}
+
+/* Quanto girar para ir do ângulo "de" ao ângulo "para" pelo caminho mais
+ * curto: de -180 a 180 graus. Positivo = o ângulo aumenta; negativo = diminui. */
+double diferenca_angulo(double de, double para) {
+    double d = para - de;
+    while (d > 180.0) {
+        d = d - 360.0;                      /* mais de meia volta: vai pelo outro lado */
+    }
+    while (d <= -180.0) {
+        d = d + 360.0;
+    }
+    return d;
+}
+
+/* -----------------------------------------------------------------------------
+ * FIM DOS AJUDANTES
+ * ----------------------------------------------------------------------------- */
