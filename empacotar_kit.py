@@ -33,9 +33,9 @@ OBRIGATORIOS = [
     ".vscode/c_cpp_properties.json", ".vscode/settings.json",
     "c/.vscode/c_cpp_properties.json", "cpp/.vscode/c_cpp_properties.json", "java/.vscode/settings.json",
     "c/bot.c", "c/arena.h",
-    "cpp/bot.cpp", "cpp/nlohmann/json.hpp",
-    "java/MeuBot.java", "java/gson.jar",
-    "python/bot.py",
+    "cpp/bot.cpp", "cpp/arena.hpp", "cpp/nlohmann/json.hpp",
+    "java/MeuBot.java", "java/Arena.java", "java/gson.jar",
+    "python/bot.py", "python/arena.py",
     # Verificador: as mesmas checagens e a mesma montagem da partida (cópias do battle-orchestrator)
     "verificar.py",
     "verificador/build_bot.sh", "verificador/checar_fonte.py", "verificador/checar_python.py",

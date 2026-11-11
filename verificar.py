@@ -40,6 +40,8 @@ import time
 
 KIT = os.path.dirname(os.path.abspath(__file__))
 VERIFICADOR = os.path.join(KIT, "verificador")
+# Arquivos de apoio de cada linguagem (pasta do kit, nome): cópias dos do servidor
+APOIO = [("c", "arena.h"), ("cpp", "arena.hpp"), ("java", "Arena.java"), ("python", "arena.py")]
 
 LINGUAGENS = {".c": "c", ".cpp": "cpp", ".java": "java", ".py": "py"}
 NOME_LINGUAGEM = {"c": "C", "cpp": "C++", "java": "Java", "py": "Python 3"}
@@ -117,7 +119,9 @@ def montar_raiz(tmp):
     os.makedirs(wrappers)
     for nome in os.listdir(VERIFICADOR):
         shutil.copy2(os.path.join(VERIFICADOR, nome), os.path.join(wrappers, nome))
-    shutil.copy2(os.path.join(KIT, "c", "arena.h"), os.path.join(wrappers, "arena.h"))
+    # Arquivos de apoio (o que o "#include"/"import" da equipe usa): os mesmos do servidor
+    for pasta, nome in APOIO:
+        shutil.copy2(os.path.join(KIT, pasta, nome), os.path.join(wrappers, nome))
     os.makedirs(os.path.join(raiz, "engine", "nlohmann"))
     shutil.copy2(os.path.join(KIT, "cpp", "nlohmann", "json.hpp"), os.path.join(raiz, "engine", "nlohmann", "json.hpp"))
     os.makedirs(os.path.join(raiz, "libs"))
@@ -131,8 +135,10 @@ def montar_python_sem_bash(arquivo, exe):
         fonte = base64.b64encode(f.read()).decode("ascii")
     with open(os.path.join(VERIFICADOR, "wrapper.py"), encoding="utf-8") as f:
         wrapper = f.read()
+    with open(os.path.join(KIT, "python", "arena.py"), "rb") as f:
+        apoio = base64.b64encode(f.read()).decode("ascii")
     with open(exe, "w", encoding="utf-8", newline="\n") as f:
-        f.write(f'#!/usr/bin/env python3\n_FONTE_DA_EQUIPE = "{fonte}"\n{wrapper}')
+        f.write(f'#!/usr/bin/env python3\n_FONTE_DA_EQUIPE = "{fonte}"\n_FONTE_ARENA = "{apoio}"\n{wrapper}')
 
 
 def falta_ferramenta(lang):
