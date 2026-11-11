@@ -9,11 +9,11 @@ Confere o seu bot ANTES de enviar, do mesmo jeito que o BOCA e a arena fazem:
   2. Montagem: compila o bot junto com o código da arena (wrappers), como na partida.
      Pega main() repetida, assinatura errada e erros de ligação.
   3. Teste rodando: executa o seu pensar() em centenas de estados de jogo e confere
-     o tempo de cada resposta (limite de 50 ms por tick), os campos da ação e os erros.
+     o tempo de cada resposta (limite de 50 ms por frame), os campos da ação e os erros.
 
 Uso (na pasta do kit):
     python3 verificar.py python/bot.py
-    python3 verificar.py c/bot.c --ticks 600
+    python3 verificar.py c/bot.c --frames 600
     python3 verificar.py treino/01_andar/bot.py --treino   (estados com os pontos do objetivo)
 
 Precisa do Python 3.10+. As etapas 2 e 3 precisam do compilador da sua linguagem
@@ -40,17 +40,22 @@ import time
 
 KIT = os.path.dirname(os.path.abspath(__file__))
 VERIFICADOR = os.path.join(KIT, "verificador")
+# Arquivos de apoio de cada linguagem (pasta do kit, nome): cópias dos do servidor
+APOIO = [("c", "arena.h"), ("cpp", "arena.hpp"), ("java", "Arena.java"), ("python", "arena.py")]
 
 LINGUAGENS = {".c": "c", ".cpp": "cpp", ".java": "java", ".py": "py"}
 NOME_LINGUAGEM = {"c": "C", "cpp": "C++", "java": "Java", "py": "Python 3"}
 
 # Limites da arena (iguais aos da engine)
-PRAZO_MS = 50            # resposta de cada tick
-PRAZO_TICK0_MS = 5000    # o tick 0 dá tempo para o programa iniciar (a JVM é lenta)
+PRAZO_MS = 50            # resposta de cada frame
+PRAZO_TICK0_MS = 5000    # o frame 0 dá tempo para o programa iniciar (a JVM é lenta)
 FOLGA_MS = 35            # acima disto já é arriscado: o servidor roda até 20 bots
 ESPERA_MAX_S = 3.0       # sem resposta depois disto, o teste desiste
 OPCOES_JAVA = ["-Xmx512m", "-XX:CompressedClassSpaceSize=64m", "-XX:+UseSerialGC"]
 CAMPOS = {"throttle": "numero", "turn": "numero", "turret_angle": "numero", "shoot": "bool", "shield": "bool"}
+# A arena recebe os campos em inglês (o código da arena traduz); as mensagens usam os nomes da sua Acao
+NOME_CAMPO = {"throttle": "mover", "turn": "direcao (giro)", "turret_angle": "angulo_torre",
+              "shoot": "atirar", "shield": "ligar_escudo"}
 
 # Cores só em terminal de verdade
 COR = sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
@@ -117,7 +122,9 @@ def montar_raiz(tmp):
     os.makedirs(wrappers)
     for nome in os.listdir(VERIFICADOR):
         shutil.copy2(os.path.join(VERIFICADOR, nome), os.path.join(wrappers, nome))
-    shutil.copy2(os.path.join(KIT, "c", "arena.h"), os.path.join(wrappers, "arena.h"))
+    # Arquivos de apoio (o que o "#include"/"import" da equipe usa): os mesmos do servidor
+    for pasta, nome in APOIO:
+        shutil.copy2(os.path.join(KIT, pasta, nome), os.path.join(wrappers, nome))
     os.makedirs(os.path.join(raiz, "engine", "nlohmann"))
     shutil.copy2(os.path.join(KIT, "cpp", "nlohmann", "json.hpp"), os.path.join(raiz, "engine", "nlohmann", "json.hpp"))
     os.makedirs(os.path.join(raiz, "libs"))
@@ -131,8 +138,10 @@ def montar_python_sem_bash(arquivo, exe):
         fonte = base64.b64encode(f.read()).decode("ascii")
     with open(os.path.join(VERIFICADOR, "wrapper.py"), encoding="utf-8") as f:
         wrapper = f.read()
+    with open(os.path.join(KIT, "python", "arena.py"), "rb") as f:
+        apoio = base64.b64encode(f.read()).decode("ascii")
     with open(exe, "w", encoding="utf-8", newline="\n") as f:
-        f.write(f'#!/usr/bin/env python3\n_FONTE_DA_EQUIPE = "{fonte}"\n{wrapper}')
+        f.write(f'#!/usr/bin/env python3\n_FONTE_DA_EQUIPE = "{fonte}"\n_FONTE_ARENA = "{apoio}"\n{wrapper}')
 
 
 def falta_ferramenta(lang):
@@ -188,6 +197,10 @@ class Mundo:
         # --treino: pontos do objetivo, como nas fases da guia Treino
         self.pontos = [{"id": f"P{i + 1}", "x": round(self.rng.uniform(100, 900), 3),
                         "y": round(self.rng.uniform(100, 900), 3), "raio": 30.0} for i in range(4)] if treino else None
+        if self.pontos is not None:
+            # as fases 01, 02 e 05 usam o ponto "B"; a 03, P1 a P4
+            self.pontos.append({"id": "B", "x": round(self.rng.uniform(100, 900), 3),
+                                "y": round(self.rng.uniform(100, 900), 3), "raio": 30.0})
         self.eu = {"id": 1, "x": 500.0, "y": 140.0, "vx": 0.0, "vy": 0.0, "angle": 90.0, "turret_angle": 90.0,
                    "hp": 100.0, "energy": 100.0, "cooldown": 0.0, "shield": False}
         self.inimigos = [self._inimigo(i + 2) for i in range(5)]
@@ -298,19 +311,19 @@ def conferir_acao(texto, problemas):
             problemas["nulo"].add(campo)
         elif tipo == "numero":
             if isinstance(valor, bool) or not isinstance(valor, (int, float)):
-                problemas["tipo"].add(f"{campo} = {json.dumps(valor)} (devia ser número)")
+                problemas["tipo"].add(f"{NOME_CAMPO.get(campo, campo)} = {json.dumps(valor)} (devia ser número)")
             elif campo in ("throttle", "turn") and abs(valor) > 1.0:
                 problemas["fora"].add(campo)
         elif tipo == "bool" and not isinstance(valor, bool):
             if isinstance(valor, (int, float)):
                 problemas["bool_numero"].add(campo)
             else:
-                problemas["tipo"].add(f"{campo} = {json.dumps(valor)} (devia ser true/false)")
+                problemas["tipo"].add(f"{NOME_CAMPO.get(campo, campo)} = {json.dumps(valor)} (devia ser true/false)")
     return acao
 
 
 def testar(lang, exe, ticks, seed, rel, treino=False):
-    rel.etapa(f"3. Teste rodando ({ticks} ticks de jogo, um estado por tick)")
+    rel.etapa(f"3. Teste rodando ({ticks} frames de jogo, um estado por frame)")
     cmd = comando_execucao(lang, exe)
     try:
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -339,7 +352,7 @@ def testar(lang, exe, ticks, seed, rel, treino=False):
         try:
             chegada, linha = fila.get(timeout=ESPERA_MAX_S if tick else max(ESPERA_MAX_S, PRAZO_TICK0_MS / 1000 + 5))
         except queue.Empty:
-            rel.erro(f"o bot não respondeu ao tick {tick} em {ESPERA_MAX_S:.0f} s: na arena ele seria eliminado",
+            rel.erro(f"o bot não respondeu ao frame {tick} em {ESPERA_MAX_S:.0f} s: na arena ele seria eliminado",
                      "procure laços sem fim ou leitura do teclado (input/scanf/cin) no seu código")
             break
         if linha is None:
@@ -374,26 +387,26 @@ def testar(lang, exe, ticks, seed, rel, treino=False):
 
     # --- relatório do teste ---
     if morreu is not None:
-        rel.erro(f"o programa do bot terminou no tick {morreu}: na arena ele seria desconectado e eliminado",
+        rel.erro(f"o programa do bot terminou no frame {morreu}: na arena ele seria desconectado e eliminado",
                  "veja as mensagens de erro abaixo (crash, exit(), exceção fora do pensar)")
     elif respondidos == ticks:
-        rel.ok(f"respondeu aos {ticks} estados, uma resposta por tick")
+        rel.ok(f"respondeu aos {ticks} estados, uma resposta por frame")
 
     if tick0_ms is not None:
         if tick0_ms > PRAZO_TICK0_MS:
-            rel.erro(f"tick 0 levou {tick0_ms:.0f} ms (limite {PRAZO_TICK0_MS} ms para iniciar)")
+            rel.erro(f"frame 0 levou {tick0_ms:.0f} ms (limite {PRAZO_TICK0_MS} ms para iniciar)")
         else:
-            rel.ok(f"início (tick 0): {tick0_ms:.0f} ms (limite {PRAZO_TICK0_MS} ms)")
+            rel.ok(f"início (frame 0): {tick0_ms:.0f} ms (limite {PRAZO_TICK0_MS} ms)")
     if tempos:
         ordenados = sorted(tempos)
         p95 = ordenados[min(len(ordenados) - 1, int(len(ordenados) * 0.95))]
-        resumo = f"tempo por tick: médio {sum(tempos) / len(tempos):.2f} ms, p95 {p95:.2f} ms, máximo {max(tempos):.2f} ms"
+        resumo = f"tempo por frame: médio {sum(tempos) / len(tempos):.2f} ms, p95 {p95:.2f} ms, máximo {max(tempos):.2f} ms"
         if lentos:
-            rel.erro(f"{len(lentos)} tick(s) acima de {PRAZO_MS} ms ({resumo})",
-                     "na arena cada um desses ticks é perdido, e 20 seguidos eliminam o bot. "
-                     "Corte buscas pesadas, evite recriar estruturas grandes a cada tick e limite laços")
+            rel.erro(f"{len(lentos)} frame(s) acima de {PRAZO_MS} ms ({resumo})",
+                     "na arena cada um desses frames é perdido, e 20 seguidos eliminam o bot. "
+                     "Corte buscas pesadas, evite recriar estruturas grandes a cada frame e limite laços")
             for t, ms in lentos[:5]:
-                rel.info(f"tick {t}: {ms:.1f} ms")
+                rel.info(f"frame {t}: {ms:.1f} ms")
         elif p95 > FOLGA_MS:
             rel.aviso(f"{resumo}: perto do limite de {PRAZO_MS} ms",
                       "o servidor pode ser mais lento que esta máquina; deixe folga")
@@ -402,8 +415,8 @@ def testar(lang, exe, ticks, seed, rel, treino=False):
 
     falhas_pensar = sum(1 for l in stderr if l.startswith("[ERRO NO BOT"))
     if falhas_pensar:
-        rel.erro(f"o pensar() falhou em {falhas_pensar} tick(s): neles a arena usa a ação parada ({{}})",
-                 "corrija a exceção mostrada abaixo; o tanque fica parado nesses ticks")
+        rel.erro(f"o pensar() falhou em {falhas_pensar} frame(s): neles a arena usa a ação parada ({{}})",
+                 "corrija a exceção mostrada abaixo; o tanque fica parado nesses frames")
     if problemas["nao_json"] or problemas["nao_objeto"]:
         rel.erro(f"{problemas['nao_json'] + problemas['nao_objeto']} resposta(s) não são um objeto JSON "
                  "(valem como ação parada)")
@@ -413,15 +426,16 @@ def testar(lang, exe, ticks, seed, rel, treino=False):
         rel.erro("campos com valor nulo/NaN (a arena ignora o campo): " + ", ".join(sorted(problemas["nulo"])),
                  "algum cálculo deu NaN (ex.: divisão por zero, raiz de negativo, acos fora de [-1, 1])")
     if problemas["bool_numero"]:
-        rel.aviso("shoot/shield como número (" + ", ".join(sorted(problemas["bool_numero"])) +
-                  "): a arena aceita (diferente de 0 = sim), mas use true/false")
+        rel.aviso("atirar/ligar_escudo como número (" + ", ".join(sorted(NOME_CAMPO.get(c, c) for c in problemas["bool_numero"])) +
+                  "): a arena aceita (diferente de 0 = sim)")
     if problemas["fora"]:
-        rel.aviso("valores fora de [-1, 1] em " + ", ".join(sorted(problemas["fora"])) + ": a arena corta para o limite")
+        rel.aviso("valores fora de [-1, 1] em " + ", ".join(sorted(NOME_CAMPO.get(c, c) for c in problemas["fora"])) +
+                  ": a arena corta para o limite")
     if problemas["desconhecido"]:
         rel.aviso("campos que a arena não conhece (ignorados): " + ", ".join(sorted(problemas["desconhecido"])),
-                  "os campos da ação são throttle, turn, turret_angle, shoot e shield")
+                  "os campos da ação são mover, direcao, angulo_torre, atirar e ligar_escudo")
     if problemas["vazia"] and not falhas_pensar:
-        rel.aviso(f"{problemas['vazia']} resposta(s) vazias ({{}}): o tanque fica parado nesses ticks")
+        rel.aviso(f"{problemas['vazia']} resposta(s) vazias ({{}}): o tanque fica parado nesses frames")
     if extras:
         rel.erro(f"{extras} linha(s) a mais na saída da arena",
                  "algo escreve direto na saída padrão (fora do pensar ou por um caminho que o wrapper não protege)")
@@ -437,7 +451,8 @@ def testar(lang, exe, ticks, seed, rel, treino=False):
 def main():
     ap = argparse.ArgumentParser(description="Confere o bot antes de enviar (validação, montagem e teste rodando).")
     ap.add_argument("arquivo", help="o arquivo do bot: .c, .cpp, .java ou .py")
-    ap.add_argument("--ticks", type=int, default=300, help="ticks do teste rodando (padrão 300)")
+    ap.add_argument("--frames", "--ticks", dest="frames", type=int, default=300,
+                    help="frames do teste rodando (padrão 300)")
     ap.add_argument("--seed", type=int, default=2026, help="semente dos estados gerados (padrão 2026)")
     ap.add_argument("--treino", action="store_true", help="estados com objetivo (pontos), como na guia Treino")
     args = ap.parse_args()
@@ -461,7 +476,7 @@ def main():
         if validar(lang, arquivo, rel):
             exe = montar(lang, arquivo, tmp, rel)
             if exe:
-                testar(lang, exe, max(30, args.ticks), args.seed, rel, args.treino)
+                testar(lang, exe, max(30, args.frames), args.seed, rel, args.treino)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

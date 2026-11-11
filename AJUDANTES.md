@@ -1,151 +1,99 @@
-# Ajudantes do starter kit (contrato C-K1)
+# Ajudantes e arquivo de apoio do starter kit
 
-Material de apoio para quem escreve o README e o enunciado. **Não vai no zip do kit**: a equipe lê os ajudantes no próprio arquivo do kit (`bot.py`, `bot.cpp`, `MeuBot.java`, `bot.c`).
+Documento de manutenção (não vai no `starter_kit.zip`). Substitui o antigo contrato C-K1, de quando o
+`pensar` recebia o JSON bruto da engine (`self`, `enemies`, `tick`...) e devolvia `throttle`/`turn`/`shoot`.
 
-## Princípio (definido pelo usuário)
+## Princípio
 
-O maior desafio do participante é a lógica de decisão (máquina de estados, escolha de alvo, fuga etc.), não entender o sistema. Por isso o kit traz **ajudantes escritos no próprio arquivo**, numa seção marcada:
+O desafio do participante é a lógica de decisão, não entender o sistema. Por isso:
 
-```
-AJUDANTES (opcional: renomeie, altere ou apague)
-```
+- **tudo o que a equipe vê é em português**: os campos do estado, a ação, as constantes e as mensagens.
+  A engine, o protocolo, o replay e a Unity continuam em inglês; o **arquivo de apoio** de cada
+  linguagem traduz nos dois sentidos;
+- a única unidade de tempo é o **frame** (1 frame = 0,1 s); velocidades em unidades por frame;
+- o modelo traz `pensar()` no topo e os ajudantes no fim do arquivo, numa seção marcada
+  `AJUDANTES (opcional: use, mude ou apague)` ... `FIM DOS AJUDANTES`. Os ajudantes só calculam:
+  nenhum decide nada (nada de "inimigo mais próximo", fuga ou mira prontos);
+- o código do modelo é de Programação 1: laços com índice ou `for x in lista`, `if`, funções
+  simples. Em C e C++, sem `static`, `inline`, `fmod`, `hypot` e `? :`; os protótipos dos ajudantes
+  ficam logo depois dos includes. Em C, o `->` aparece só em `Tanque meu = e->eu;`. Java exige
+  `static` (métodos e variáveis de memória da classe).
 
-- A equipe vê o código, edita, renomeia ou apaga. A IDE encontra tudo (autocompletar, ir para a definição), porque está no arquivo.
-- Os ajudantes **só facilitam o acesso aos atributos**. Nenhum deles decide nada: não existe "inimigo mais próximo", fuga, mira, perigo iminente, BFS etc. Isso é a estratégia da equipe.
-- O template (`pensar`) é mínimo: lê cada atributo pelos ajudantes, com um comentário por campo, e devolve uma ação válida e simples. Não há FSM, enum de estados nem estrutura de decisão pronta. FSM e arquiteturas aparecem só como conceito no enunciado.
-- Quem preferir pode apagar a seção inteira e ler o estado bruto (JSON, `dict`, `json`, `JsonObject`). O que o `pensar` recebe e devolve não muda.
+## Arquivo de apoio (um por linguagem; a equipe envia só o seu arquivo)
 
-## Nomes
-
-Os nomes seguem o `arena.h` do C (que já é tipado) e as chaves do JSON da engine: `angle`, `turret_angle`, `hp`, `energy`, `cooldown`, `shield`, `throttle`, `turn`, `shoot`. Os ajudantes são em português (`eu`, `inimigos`, `distancia`...). Os nomes são os **mesmos nas 4 linguagens**; em Java, os métodos e campos compostos usam camelCase (`anguloPara`, `turretAngle`).
-
-Quem lê o JSON bruto e quem usa os ajudantes enxerga os mesmos nomes: `eu(estado).hp` é o mesmo valor de `estado["self"]["hp"]`.
-
-## Acessores do estado
-
-| Ajudante | Python | C++ | Java | C (já vem tipado) |
-| :--- | :--- | :--- | :--- | :--- |
-| `tick` | `tick(estado)` -> `int` | `int tick(const json& estado)` | `static int tick(JsonObject estado)` | `e->tick` |
-| `eu` | `eu(estado)` -> `Tanque` | `Tanque eu(const json& estado)` | `static Tanque eu(JsonObject estado)` | `e->self` |
-| `inimigos` | `inimigos(estado)` -> lista de `Inimigo` | `std::vector<Inimigo> inimigos(const json& estado)` | `static List<Inimigo> inimigos(JsonObject estado)` | `e->inimigos[i]`, com `i < e->n_inimigos` |
-| `perigos` | `perigos(estado)` -> lista de `Hazard` | `std::vector<Hazard> perigos(const json& estado)` | `static List<Hazard> perigos(JsonObject estado)` | `e->hazards[i]`, com `i < e->n_hazards` |
-| `itens` | `itens(estado)` -> lista de `Item` | `std::vector<Item> itens(const json& estado)` | `static List<Item> itens(JsonObject estado)` | `e->itens[i]`, com `i < e->n_itens` |
-
-- As listas contêm só o que a engine enviou neste tick: `inimigos` traz apenas adversários **vivos** e sem a vida deles.
-- Lista vazia quando não há nada (nunca `None`/`null`).
-- Em C os tipos abaixo são as structs do `arena.h` (`Estado`, `Tanque`, `Inimigo`, `Hazard`, `Item`, `Acao`), que o kit já traz. A seção de ajudantes do `bot.c` tem só a matemática e comentários que explicam esse mapa.
-
-## Tipos e campos
-
-Python e C++ usam os nomes da coluna **Campo**; Java usa a coluna **Java** quando difere. Em Python os objetos são classes simples com esses atributos (`meu.x`). Em C++ são `struct`s. Em Java são classes `static` aninhadas dentro da classe principal, com campos públicos.
-
-### `Tanque` (devolvido por `eu`)
-
-| Campo | Java | Tipo | Significado |
+| Linguagem | Arquivo da equipe | Apoio (no kit, no zip das fases e no servidor) | Fonte no orch |
 | :--- | :--- | :--- | :--- |
-| `id` | `id` | inteiro | identificador do seu tanque |
-| `x`, `y` | `x`, `y` | decimal | posição na arena (a arena tem 1000 x 1000) |
-| `vx`, `vy` | `vx`, `vy` | decimal | velocidade, em unidades por segundo |
-| `angle` | `angle` | decimal | direção do chassi, em graus [0, 360). 0 aponta para +x; `turn` positivo aumenta o ângulo |
-| `turret_angle` | `turretAngle` | decimal | direção da torre, em graus [0, 360), absoluta (não relativa ao chassi) |
-| `hp` | `hp` | decimal | vida, de 0 a 100 |
-| `energy` | `energy` | decimal | energia, de 0 a 100 (tiro e escudo gastam energia) |
-| `cooldown` | `cooldown` | decimal | segundos até poder atirar de novo (0 = pronto) |
-| `shield` | `shield` | booleano | escudo ativo neste momento |
+| Python | `bot.py` (`from arena import *`) | `arena.py` | `wrappers/arena.py` |
+| C | `bot.c` (`#include "arena.h"`) | `arena.h` | `wrappers/arena.h` |
+| C++ | `bot.cpp` (`#include "arena.hpp"`) | `arena.hpp` | `wrappers/arena.hpp` |
+| Java | `MeuBot.java` (`public class MeuBot extends Arena`) | `Arena.java` + `gson.jar` | `wrappers/Arena.java` |
 
-### `Inimigo` (elementos de `inimigos`)
+As cópias do kit são iguais às do orch (ver `MANUTENCAO.md`).
 
-| Campo | Tipo | Significado |
-| :--- | :--- | :--- |
-| `id` | inteiro | identificador do adversário |
-| `x`, `y` | decimal | posição |
-| `vx`, `vy` | decimal | velocidade, em unidades por segundo |
-
-A engine não informa a vida, a energia nem o ângulo dos adversários.
-
-### `Hazard` (elementos de `perigos`)
-
-| Campo | Java | Tipo | Significado |
-| :--- | :--- | :--- | :--- |
-| `id` | `id` | inteiro | identificador do perigo |
-| `tipo` | `tipo` | inteiro (constante) | `HAZARD_ARTILHARIA` ou `HAZARD_LASER` |
-| `x`, `y` | `x`, `y` | decimal | posição do centro (artilharia) ou da origem do feixe (laser) |
-| `radius` | `radius` | decimal | raio de efeito |
-| `timer` | `timer` | decimal | segundos até o impacto (artilharia) ou até a ativação (laser) |
-| `angle` | `angle` | decimal | direção atual do feixe, em graus (laser) |
-| `duration` | `duration` | decimal | segundos de efeito (laser: quanto tempo queima depois de ativado) |
-
-- `HAZARD_ARTILHARIA`: explode em (`x`, `y`) com raio `radius` quando `timer` chega a 0.
-- `HAZARD_LASER`: o feixe gira a partir de (`x`, `y`) na direção `angle`; queima por `duration` segundos depois que `timer` chega a 0.
-
-### `Item` (elementos de `itens`)
-
-| Campo | Tipo | Significado |
-| :--- | :--- | :--- |
-| `id` | inteiro | identificador do item |
-| `tipo` | inteiro (constante) | `ITEM_CURA` ou `ITEM_ENERGIA` |
-| `x`, `y` | decimal | posição |
-
-### Constantes de tipo
-
-`HAZARD_ARTILHARIA = 0`, `HAZARD_LASER = 1`, `ITEM_CURA = 0`, `ITEM_ENERGIA = 1`. Mesmos nomes e valores nas 4 linguagens (em Python, constantes no topo do arquivo; em C++ e C, `enum`; em Java, `static final int` dentro da classe principal). O JSON bruto traz `"ARTILLERY"`, `"LASER"`, `"HEAL"`, `"ENERGY"` em `type`; os ajudantes convertem.
-
-## Montador da ação
-
-Recebe os comandos e devolve a ação no formato que a engine espera, com os **tipos certos**. Isso evita um erro silencioso: se `shoot` ou `shield` não forem booleanos de verdade (por exemplo, `1` em vez de `true`), a engine descarta o tick inteiro, e o tanque fica sem comando naquele tick.
+## Assinaturas de `pensar`
 
 | Linguagem | Assinatura |
 | :--- | :--- |
-| Python | `montar_acao(throttle=0.0, turn=0.0, turret_angle=None, shoot=False, shield=False)` -> `dict` |
-| C++ | `json montar_acao(double throttle, double turn, double turret_angle, bool shoot, bool shield)` e a variante sem torre `json montar_acao(double throttle, double turn, bool shoot, bool shield)` |
-| Java | `static JsonObject montarAcao(double throttle, double turn, double turretAngle, boolean shoot, boolean shield)` e a variante sem torre `montarAcao(double throttle, double turn, boolean shoot, boolean shield)` |
-| C | não tem: `Acao` já é uma struct tipada (`throttle`, `turn`, `turret_angle`, `shoot`, `shield`). Atenção: em C a torre é sempre enviada; comece de `a.turret_angle = e->self.turret_angle` para mantê-la |
-
-| Parâmetro | Faixa | Significado |
-| :--- | :--- | :--- |
-| `throttle` | -1.0 a 1.0 | aceleração: -1 ré, 0 parado, 1 frente toda |
-| `turn` | -1.0 a 1.0 | giro do chassi: negativo diminui o ângulo, positivo aumenta |
-| `turret_angle` | graus (0 a 360) | direção **absoluta** da torre. Omitido: a torre mantém o ângulo atual (Python: `None`; C++ e Java: variante sem o parâmetro) |
-| `shoot` | booleano | tentar disparar (precisa de `cooldown` zerado e energia) |
-| `shield` | booleano | tentar ligar o escudo (precisa de energia) |
-
-A engine limita `throttle` e `turn` a [-1, 1] e normaliza a torre; o montador não faz isso por você.
-
-## Matemática básica
-
-As quatro funções que antes ficavam escondidas no `arena.h` passam a ficar **no arquivo do kit**, nas 4 linguagens, para a equipe ver, copiar e trocar. Ângulos em graus, mesma convenção da arena (0 = +x, crescente de +x para +y).
-
-| Ajudante | Python / C++ / C | Java | Devolve |
-| :--- | :--- | :--- | :--- |
-| distância entre dois pontos | `distancia(x1, y1, x2, y2)` | `distancia(x1, y1, x2, y2)` | decimal >= 0 |
-| ângulo do ponto 1 para o ponto 2 | `angulo_para(x1, y1, x2, y2)` | `anguloPara(x1, y1, x2, y2)` | graus em [0, 360) |
-| menor diferença entre dois ângulos | `diferenca_angulo(de, para)` | `diferencaAngulo(de, para)` | graus em (-180, 180]; positivo = girar no sentido em que o ângulo aumenta |
-| ângulo para o intervalo padrão | `normalizar_angulo(graus)` | `normalizarAngulo(graus)` | graus em [0, 360) |
-
-Em C++ e Java os parâmetros e retornos são `double`. Em C, `static inline double`.
-
-## Onde cada ajudante fica no arquivo
-
-| Linguagem | Arquivo do kit | Onde |
-| :--- | :--- | :--- |
-| Python | `bot.py` | classes simples e funções **no topo** do arquivo, depois o `pensar` |
-| C++ | `bot.cpp` | `#include <nlohmann/json.hpp>`, alias `json`, `struct`s e funções **no topo**, depois o `pensar` |
-| Java | `MeuBot.java` | classes `static` aninhadas e métodos `static` **dentro da classe principal** `MeuBot` (uma classe auxiliar no nível do arquivo quebra o executor), antes do `pensar` |
-| C | `bot.c` | `#include "arena.h"`, as 4 funções de matemática (`static inline`) e comentários |
-
-Para apagar os ajudantes: remova a seção inteira (entre as linhas marcadas `AJUDANTES`) e trabalhe com o estado bruto. Em Java, apague também os `import` que ficarem sem uso (opcional).
-
-## Assinaturas de `pensar` (não mudam)
-
-| Linguagem | Assinatura |
-| :--- | :--- |
-| Python | `def pensar(estado):` (`estado` é um `dict`; devolve um `dict`) |
-| C++ | `json pensar(const json& estado)` |
-| Java | `public static JsonObject pensar(JsonObject estado)` |
+| Python | `def pensar(estado):` devolve `Acao` |
 | C | `Acao pensar(const Estado *e)` |
+| C++ | `Acao pensar(const Estado& e)` |
+| Java | `public static Acao pensar(Estado e)` |
 
-## Estado bruto (para quem apagar os ajudantes)
+## Estado (o que o tanque enxerga a cada frame)
 
-Uma linha JSON por tick. Chaves: `tick`; `self` {`id`, `x`, `y`, `vx`, `vy`, `angle`, `turret_angle`, `hp`, `energy`, `cooldown`, `shield`}; `enemies[]` {`id`, `x`, `y`, `vx`, `vy`} (só vivos); `hazards[]` {`id`, `type` (`ARTILLERY` ou `LASER`), `x`, `y`, `radius`, `timer`, `angle`, `duration`}; `items[]` {`id`, `type` (`HEAL` ou `ENERGY`), `x`, `y`}. A zona segura não vem no estado.
+| Campo | Tipo | Significado |
+| :--- | :--- | :--- |
+| `frame` | inteiro | número do frame (começa em 0) |
+| `eu` | `Tanque` | o seu tanque |
+| `inimigos` | lista de `Inimigo` | inimigos vivos (em C/Java também `n_inimigos`) |
+| `perigos` | lista de `Perigo` | artilharia e laser (`n_perigos`) |
+| `itens` | lista de `Item` | itens no mapa (`n_itens`) |
+| `pontos` | lista de `Ponto` | pontos das fases de treino; no torneio, vazia (`n_pontos` = 0) |
 
-Resposta: um objeto JSON com `throttle`, `turn` (decimais), `turret_angle` (decimal, opcional), `shoot`, `shield` (booleanos). Saída de `print`/`printf`/`System.out` é desviada para o log de erros e descartada; o canal com a engine é protegido pelo executor.
+Em Python, `estado.inimigos` etc. são listas (`len()`); em C e Java, vetores com `n_*`; em C++,
+`std::vector` (`.size()`).
+
+- `Tanque`: `id`, `x`, `y`, `vel_x`, `vel_y`, `angulo_chassi`, `angulo_torre`, `vida` (0 a 100),
+  `energia` (0 a 100), `frames_para_atirar` (0 = pode atirar), `escudo_ativo`.
+- `Inimigo`: `id`, `x`, `y`, `vel_x`, `vel_y` (sem a vida).
+- `Perigo`: `id`, `tipo` (`PERIGO_ARTILHARIA` ou `PERIGO_LASER`), `x`, `y`, `raio`,
+  `frames_ate_impacto` (0 = já ativo), `angulo` (feixe do laser), `frames_restantes`.
+- `Item`: `id`, `tipo` (`ITEM_CURA` ou `ITEM_ENERGIA`), `x`, `y`.
+- `Ponto`: `id` (texto: `"B"`, `"P1"`...), `x`, `y`, `raio`. Em Java compare com `p.id.equals("B")`;
+  em C, `strcmp(p.id, "B") == 0`.
+
+Ângulos em graus de 0 a 360; 0 aponta para +x e 90 para +y.
+
+## Ação (o que o tanque faz neste frame)
+
+| Campo | Valores | Efeito |
+| :--- | :--- | :--- |
+| `mover` | `FRENTE` (1), `PARADO` (0), `RE` (-1) ou qualquer valor de -1 a 1 | 5 unidades por frame na velocidade máxima, sem inércia |
+| `direcao` | graus absolutos | para onde o chassi deve apontar; ele gira até 9 graus por frame até chegar |
+| `angulo_torre` | graus absolutos | a torre aponta na hora |
+| `atirar` | 1/0 ou true/false (Java: `boolean`) | atira se `frames_para_atirar == 0` e energia >= 20 (custo 20; espera 10 frames) |
+| `ligar_escudo` | 1/0 ou true/false (Java: `boolean`) | liga o escudo neste frame |
+
+O apoio converte `direcao` no `turn` da engine (o giro mais curto, limitado a 1) e `mover` no `throttle`.
+O modelo preenche sempre os 5 campos, mantendo o chassi e a torre (`acao.direcao = meu.angulo_chassi`).
+
+**API antiga:** em Python, C++ e Java, um `pensar` antigo (recebe e devolve o JSON cru em inglês)
+continua compilando e rodando, e as chaves antigas na ação (`throttle`, `turn`, `turret_angle`, `shoot`,
+`shield`) são aceitas com um `[AVISO]` no log da equipe. Em Python, um campo antigo na `Acao`
+(`acao.throttle = 1`) dá erro com o nome novo. Em C só existe a API nova (structs do `arena.h`).
+
+## Ajudantes de matemática (no arquivo da equipe)
+
+| Função (Python/C/C++) | Java | Devolve |
+| :--- | :--- | :--- |
+| `distancia(x1, y1, x2, y2)` | `distancia(...)` | distância entre os dois pontos |
+| `angulo_para(x1, y1, x2, y2)` | `angulo_para(...)` | ângulo de 0 a 360 de quem está em (x1, y1) olhando para (x2, y2) |
+| `diferenca_angulo(de, para)` | `diferenca_angulo(...)` | giro mais curto, de -180 a 180 |
+
+O `normalizar_angulo` saiu: a engine e o apoio aceitam qualquer ângulo, e `angulo_para` já devolve
+0 a 360.
+
+Os modelos de treino (`treino/NN_*/`) carregam o mesmo bloco de ajudantes do modelo principal da
+linguagem. Depois de mudar os ajudantes, alinhe com:
+
+    python3 empacotar_kit.py --alinhar-treino --fases ../battle-orchestrator/fases
